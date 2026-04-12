@@ -124,10 +124,10 @@
 - generate reports
 - combine event + lesson outcomes
 - produce grades and summaries
+- saves reports
 
 ### Ownership
 
-- Owns aggregation logic only
-- Does NOT own source data
+- Owns aggregation logic and saved generated reports
 
 ---
