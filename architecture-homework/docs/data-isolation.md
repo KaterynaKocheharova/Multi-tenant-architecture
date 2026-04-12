@@ -85,6 +85,50 @@ SET LOCAL app.current_tenant = 'tenant-uuid-here';
 - automatic query scoping
 - protection against accidental data leaks
 
+### Deny-by-default RLS setup (no tenant context = no rows)
+
+Use RLS policies that only allow rows when tenant context is present and matches the row tenant.
+
+```sql
+ALTER TABLE projects ENABLE ROW LEVEL SECURITY;
+ALTER TABLE projects FORCE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS tenant_isolation ON projects;
+
+CREATE POLICY tenant_isolation ON projects
+FOR ALL
+USING (
+  current_setting('app.current_tenant', true) IS NOT NULL
+  AND tenant_id = current_setting('app.current_tenant', true)::uuid
+)
+WITH CHECK (
+  current_setting('app.current_tenant', true) IS NOT NULL
+  AND tenant_id = current_setting('app.current_tenant', true)::uuid
+);
+```
+
+Why this is deny-by-default:
+
+- `current_setting('app.current_tenant', true)` returns `NULL` when unset
+- policy condition becomes false, so `SELECT/UPDATE/DELETE` see zero rows
+- `WITH CHECK` blocks `INSERT/UPDATE` when tenant context is missing or mismatched
+
+Additional hardening:
+
+- ensure your app DB role does **not** have `BYPASSRLS`
+- avoid using table owner/superuser for normal app queries
+- keep using `SET LOCAL app.current_tenant = ...` inside transactions
+
+### Coverage scope
+
+This policy pattern is applied to **all tenant-scoped tables** (not only `projects`): `users`, `courses`, `events_participation`, `submissions`, and any table containing tenant-owned data.
+
+### Request-to-query sequence
+
+`request -> tenant resolve -> authz -> transaction start -> SET LOCAL app.current_tenant -> tenant query`
+
+This sequence guarantees that every tenant-scoped query is executed with tenant context in the same DB transaction.
+
 ### 2. Application-Level Guardrails
 
 ```typescript
@@ -127,6 +171,12 @@ Usage pattern:
 - middleware: resolve tenant and auth
 - service: call `withTenantContext(tenantId, ...)`
 - repositories: use the provided transaction client (`tx`)
+
+### Verification checklist
+
+- **Test 1 (no context):** without `app.current_tenant`, tenant table queries return zero rows
+- **Test 2 (cross-tenant read):** tenant A cannot read rows owned by tenant B
+- **Test 3 (cross-tenant write):** `INSERT/UPDATE` with mismatched `tenant_id` is blocked by `WITH CHECK`
 
 ## 🔄 Cross-Tenant Collaboration Model
 
