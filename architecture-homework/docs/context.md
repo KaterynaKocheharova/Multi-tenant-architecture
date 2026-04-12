@@ -1,6 +1,6 @@
-# 📄 School Management System - Architecture Overview
+# School Management System - Architecture Overview
 
-## 🏫 Tenant Model
+## Tenant Model
 
 - The system is multi-tenant
 - Tenant boundary is defined by a **School**
@@ -11,34 +11,51 @@
 
 ---
 
-## 👤 Identity / School Context (Tenant Boundary Context)
+## Tenant Management Context (Platform Level)
 
 ### Entities
 
-- School (Tenant)
-- User
-  - Teacher
-  - Student
-- Roles
+- Tenant (School)
+- TenantSettings
 
-### Responsibilities
+### Behaviors
 
-- User management
-- Role management
-- Access control
-- Permissions
-- Tenant (School) association
+- register school (create tenant)
+- activate / suspend tenant
 
-### Language
+### Ownership
 
-- belongs to school
-- access control
-- permissions
-- role assignment
+- Owns tenant lifecycle
+- Owns global tenant registry
+- Does NOT own teacher/student domain data
 
 ---
 
-## 🎯 Event Management Context
+## Identity & Access Context
+
+### Entities
+
+- User
+- Role
+- Permission
+- Membership (user in tenant)
+
+### Behaviors
+
+- authenticate user
+- assign role
+- grant/revoke permissions
+- enforce school-level access boundaries
+
+### Ownership
+
+- Owns authentication and authorization
+- Owns user-to-tenant association
+- Does NOT own tenant provisioning lifecycle
+
+---
+
+## Event Management Context
 
 ### Entities
 
@@ -54,12 +71,12 @@
 ### Behaviors
 
 - create event
-- organize event
-- add link performance video/webinar
 - register
+- add link performance video/webinar
 - attend
 - mark attendance
 - assign place
+- send certificate
 
 ### Ownership
 
@@ -68,7 +85,7 @@
 
 ---
 
-## 📚 Lesson Planning Context
+## Lesson Planning Context
 
 ### Entities
 
@@ -89,7 +106,7 @@
 
 ---
 
-## 📊 Reporting Context (Read Model)
+## Reporting Context (Read Model)
 
 ### Core Concept
 
@@ -114,20 +131,3 @@
 - Does NOT own source data
 
 ---
-
-## 🔗 Context Ownership Rules
-
-- Event Context → attendance + participation lifecycle
-- Lesson Context → assignments + lesson planning
-- Reporting Context → aggregation + computed results
-- Identity Context → users, roles, permissions, tenant boundary
-
----
-
-## 🧠 System Summary
-
-- Tenant = School
-- Each tenant has the same bounded contexts
-- Contexts are isolated but share `schoolId`
-- Reporting depends on other contexts but does not modify them
-- Identity Context controls access across all contexts
