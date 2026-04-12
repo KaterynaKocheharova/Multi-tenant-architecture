@@ -6,11 +6,6 @@
 - Tenant boundary is defined by a **School**
 - Each school is fully isolated using `schoolId`
 
-> Tenant boundary = School  
-> Inside each tenant exist multiple bounded contexts
-
----
-
 ## Tenant Management Context (Platform Level)
 
 ### Entities
@@ -28,8 +23,6 @@
 - Owns tenant lifecycle
 - Owns global tenant registry
 - Does NOT own teacher/student domain data
-
----
 
 ## Identity & Access Context
 
@@ -52,8 +45,6 @@
 - Owns authentication and authorization
 - Owns user-to-tenant association
 - Does NOT own tenant provisioning lifecycle
-
----
 
 ## Event Management Context
 
@@ -83,8 +74,6 @@
 - Owns attendance lifecycle
 - Owns event participation state
 
----
-
 ## Lesson Planning Context
 
 ### Entities
@@ -103,8 +92,6 @@
 
 - Owns lesson planning logic
 - Owns assignment of plans
-
----
 
 ## Reporting Context (Read Model)
 
@@ -129,5 +116,3 @@
 ### Ownership
 
 - Owns aggregation logic and saved generated reports
-
----
