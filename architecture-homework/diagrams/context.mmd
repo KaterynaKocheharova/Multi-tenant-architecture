@@ -3,6 +3,9 @@ title Bounded Contexts Overview
 
 Person(student, "Student")
 Person(teacher, "Teacher")
+Person(platform_admin, "Platform Admin")
+
+System(tenant_mgmt_ctx, "Tenant Management Context", "Register schools, manage tenant lifecycle, provisioning and activation")
 
 System_Boundary(school, "School") {
 
@@ -15,6 +18,9 @@ System_Boundary(school, "School") {
     System(identity_ctx, "Identity Context", "Manage users, roles, permissions, tenant")
 
 }
+
+Rel(platform_admin, tenant_mgmt_ctx, "Manages tenants")
+Rel(tenant_mgmt_ctx, identity_ctx, "Creates tenant scope for access control")
 
 Rel(student, event_ctx, " ")
 Rel(student, lesson_ctx, " ")
