@@ -228,3 +228,62 @@ To improve observability and trust:
 - expensive
 - difficult cross-tenant collaboration
 - complex analytics and reporting
+
+---
+
+## ⚠️ Risks & Mitigations
+
+### 1. Noisy Neighbor
+
+**Risk:** A single tenant running heavy queries (e.g., bulk report exports, large event imports) can exhaust shared database resources — CPU, I/O, connection pool — and degrade performance for all other tenants.
+
+**Mitigations:**
+
+- **Query timeouts** — set `statement_timeout` per connection to cap runaway queries:
+  ```sql
+  SET statement_timeout = '30s';
+  ```
+- **Connection pooling limits** — enforce per-tenant connection caps via PgBouncer or similar, preventing one tenant from exhausting the pool
+- **Rate limiting at API layer** — throttle expensive endpoints (reports, exports) per tenant using a token-bucket or sliding-window limiter
+- **Background job offloading** — move heavy operations (CSV exports, bulk inserts) to async workers (e.g., BullMQ) so they don't compete with real-time requests
+- **Resource quotas (future)** — track per-tenant query cost metrics and alert or throttle tenants that exceed thresholds
+- **Read replicas** — route reporting/analytics queries to a read replica to isolate OLAP load from OLTP traffic
+
+---
+
+### 2. Scaling — Horizontal vs. Vertical
+
+**Risk:** As tenant count and data volume grow, a single shared database becomes a bottleneck. Choosing the wrong scaling strategy leads to either wasted cost or an unplanned migration under load.
+
+#### Vertical Scaling (Scale Up)
+
+Increase the resources of the existing database instance (CPU, RAM, storage, IOPS).
+
+**When to use:** early growth stage; straightforward to apply with zero schema changes.
+
+**Limits:** has a hard ceiling; becomes expensive at high tiers; single point of failure remains.
+
+**Mitigations:**
+
+- monitor CPU/memory utilisation and upgrade proactively before hitting limits
+- use managed cloud databases (AWS RDS, Supabase) to resize with minimal downtime
+
+#### Horizontal Scaling (Scale Out)
+
+Distribute load across multiple nodes.
+
+**Options for this architecture:**
+
+| Approach                   | Description                                                                         | Effort |
+| -------------------------- | ----------------------------------------------------------------------------------- | ------ |
+| **Read replicas**          | Route read-heavy traffic (reports, dashboards) to replicas                          | Low    |
+| **Connection pooling**     | PgBouncer in front of PostgreSQL reduces connection overhead                        | Low    |
+| **Caching layer**          | Redis cache for frequently-read, tenant-scoped data                                 | Medium |
+| **Tenant sharding**        | Partition tenants across multiple DB instances by `tenantId` hash                   | High   |
+| **Move to distributed DB** | Migrate to CockroachDB or Citus (PostgreSQL-compatible) for native horizontal scale | High   |
+
+**Recommended progression:**
+
+1. Start with **read replicas** + **connection pooling** — covers the majority of scale needs with minimal change
+2. Add a **Redis cache** for hot-path reads (active users, current events)
+3. If a single DB instance becomes a bottleneck at write scale, evaluate **tenant sharding** or a distributed SQL solution
