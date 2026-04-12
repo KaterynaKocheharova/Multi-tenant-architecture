@@ -85,6 +85,7 @@ const tenantPrisma = (tenantId: string) =>
       },
     },
   });
+```
 
 ## 🔄 Cross-Tenant Collaboration Model
 
