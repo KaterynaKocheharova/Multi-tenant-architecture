@@ -62,6 +62,24 @@ Each database connection must set:
 SET app.current_tenant = 'tenant-uuid-here';
 ```
 
+### When to set tenant context
+
+Set tenant context when a request (or background job) starts database work, not just in HTTP middleware.
+
+Recommended order:
+
+1. resolve tenant from request (subdomain/header/token)
+2. authenticate and authorize user for that tenant
+3. open a DB transaction
+4. set tenant context in that transaction
+5. run tenant-scoped queries using the same transaction client
+
+Use `SET LOCAL` inside a transaction to avoid context leakage across pooled connections:
+
+```sql
+SET LOCAL app.current_tenant = 'tenant-uuid-here';
+```
+
 **What it does:**
 
 - automatic query scoping
@@ -86,6 +104,29 @@ const tenantPrisma = (tenantId: string) =>
     },
   });
 ```
+
+### Reusable wrapper (do not repeat per endpoint)
+
+Do not add `SET LOCAL` manually in every handler. Implement once as a shared helper and call it from services.
+
+```typescript
+async function withTenantContext<T>(
+  prisma: PrismaClient,
+  tenantId: string,
+  fn: (tx: Prisma.TransactionClient) => Promise<T>,
+): Promise<T> {
+  return prisma.$transaction(async (tx) => {
+    await tx.$executeRaw`SET LOCAL app.current_tenant = ${tenantId}`;
+    return fn(tx);
+  });
+}
+```
+
+Usage pattern:
+
+- middleware: resolve tenant and auth
+- service: call `withTenantContext(tenantId, ...)`
+- repositories: use the provided transaction client (`tx`)
 
 ## 🔄 Cross-Tenant Collaboration Model
 
