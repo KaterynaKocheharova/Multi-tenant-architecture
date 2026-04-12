@@ -1,0 +1,30 @@
+flowchart TB
+
+%% USERS
+Student((Student))
+Teacher((Teacher))
+Admin((Admin))
+
+%% CONTAINERS
+WebApp[Web App - React]
+Backend[Backend API - Node.js]
+DB[(PostgreSQL Database)]
+
+%% FLOWS
+Student --> WebApp
+Teacher --> WebApp
+Admin --> WebApp
+WebApp --> Backend
+Backend --> DB
+
+%% STYLES
+classDef user fill:#FFE5B4,stroke:#333,stroke-width:1px;
+classDef frontend fill:#B3E5FC,stroke:#0277BD,stroke-width:2px;
+classDef backend fill:#C8E6C9,stroke:#2E7D32,stroke-width:2px;
+classDef database fill:#E1BEE7,stroke:#6A1B9A,stroke-width:2px;
+classDef note fill:#FFF9C4,stroke:#F9A825,stroke-width:1px;
+
+class Student,Teacher,Admin user;
+class WebApp frontend;
+class Backend backend;
+class DB database;

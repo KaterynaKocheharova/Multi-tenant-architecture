@@ -1,0 +1,85 @@
+graph TD
+
+%% ================= STYLES =================
+classDef sys fill:#ffd166,stroke:#333,stroke-width:2px;
+classDef global fill:#ef476f,stroke:#333,color:#fff,stroke-width:2px;
+classDef tenant fill:#118ab2,stroke:#073b4c,color:#fff,stroke-width:2px;
+classDef users fill:#06d6a0,stroke:#073b4c,color:#000,stroke-width:1px;
+classDef objects fill:#ffd166,stroke:#073b4c,color:#000,stroke-width:1px;
+
+%% ================= TOP =================
+SYS[System Admin]
+class SYS sys;
+
+%% ================= GLOBAL =================
+G((Global Platform))
+GE[Global Events / Webinars / Competitions]
+
+class G,GE global;
+
+SYS --> G
+G --> GE
+
+%% ================= SCHOOL A =================
+subgraph A[School A]
+direction TB
+
+A1((School A))
+
+subgraph A_USERS[Users]
+direction LR
+A_ADMIN[School Admin]
+A_TEACHER[Teacher]
+end
+
+AE[Events]
+AL[Lesson Plans]
+AP[Participation]
+AR[Reports]
+
+class A1 tenant;
+class A_ADMIN,A_TEACHER users;
+class AE,AL,AP,AR objects;
+
+A1 --> A_USERS
+
+A1 --> AE
+A1 --> AL
+A1 --> AP
+A1 --> AR
+
+end
+
+%% ================= SCHOOL B =================
+subgraph B[School B]
+direction TB
+
+B1((School B))
+
+subgraph B_USERS[Users]
+direction LR
+B_ADMIN[School Admin]
+B_TEACHER[Teacher]
+end
+
+BE[Events]
+BL[Lesson Plans]
+BP[Participation]
+BR[Reports]
+
+class B1 tenant;
+class B_ADMIN,B_TEACHER users;
+class BE,BL,BP,BR objects;
+
+B1 --> B_USERS
+
+B1 --> BE
+B1 --> BL
+B1 --> BP
+B1 --> BR
+
+end
+
+%% ================= GLOBAL LINKS =================
+GE --> A1
+GE --> B1
