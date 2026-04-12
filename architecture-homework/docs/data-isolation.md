@@ -137,4 +137,3 @@ Cross-tenant access is designed, but not accidental
 - high infrastructure complexity
 - very expensive
 - difficult cross-tenant collaboration
-```
