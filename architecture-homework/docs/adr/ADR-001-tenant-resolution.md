@@ -68,3 +68,5 @@ sequenceDiagram
 
 - Pass `tenantId` from request metadata (`headers` or `req.body`) and trust the client-provided value.
   Rejected: tenant context becomes user-input driven, increases tampering risk.
+- Keep server-side sessions and resolve tenant from session state instead of JWT claims.
+  Rejected: adds stateful session storage and invalidation complexity, and reduces horizontal scalability compared to stateless JWT-based resolution.
