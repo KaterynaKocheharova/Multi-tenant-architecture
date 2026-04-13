@@ -2,19 +2,12 @@
 
 The platform is multi-tenant and must guarantee that each request is executed in the correct tenant context.
 
-Risks without a strict strategy:
-
-- request handled with missing tenant context
-- user authenticated but not authorized for target tenant
-- context leakage across pooled DB connections
-- accidental cross-tenant reads/writes
-
 ## Decision
 
 Adopt JWT-first tenant resolution and transaction-scoped tenant context:
 
 1. Extract and validate JWT.
-2. Read `tenantId` and user identifier from token claims.
+2. Read `tenantId` and user identifier from token payload.
 3. Load user and authorize user access to the resolved tenant.
 4. Attach user to request object.
 5. Execute tenant-scoped DB logic only via `withTenantContext(...)`.
@@ -61,19 +54,17 @@ sequenceDiagram
 
 ### Positive
 
-- deterministic request scoping
+- easy extraction of tenantId
 - lower risk of cross-tenant leakage
-- consistent behavior across all modules
-- compatible with RLS and app-level guards
+- consistent behavior across all modules as tenantId is extracted in the middleware
 
 ### Negative
 
-- all tenant-scoped DB code must use wrapper/transaction client
-- request pipeline is stricter and slightly more complex
+- token theft risk: a stolen valid token can be replayed until it expires
+- revocation complexity: immediate logout or access removal is harder with stateless tokens
+- operational burden: key rotation and strict JWT validation configuration are mandatory
 
 ## Alternatives Considered
 
-1. Resolve tenant only in middleware and query DB without transaction-local context.
-   - Rejected: prone to missed propagation and connection pool leakage.
-2. Pass `tenantId` manually in every repository query only.
-   - Rejected: high human error risk; not sufficient without DB-level enforcement.
+- Pass `tenantId` from request metadata (`headers` or `req.body`) and trust the client-provided value.
+  Rejected: tenant context becomes user-input driven, increases tampering risk.
