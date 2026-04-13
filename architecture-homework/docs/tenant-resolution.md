@@ -28,12 +28,12 @@ sequenceDiagram
 
 	C->>API: HTTP request + JWT
 	API->>AUTH: Validate JWT
-	AUTH-->>API: Claims (sub, tenantId, globalRole)
+	AUTH-->>API: Claims (tenantId, userId)
 
 	alt Invalid JWT or missing tenantId
 		API-->>C: 401 Unauthorized
 	else Valid token
-		API->>DB: Find user by sub
+		API->>DB: Find user by userId
 		DB-->>API: User row
 
 		alt User missing/inactive or tenant access denied
