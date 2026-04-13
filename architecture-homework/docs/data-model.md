@@ -195,8 +195,6 @@ Constraints:
 
 - unique(eventId, participantId)
 
-<!-- !!!!!!!!!!!!!! -->
-
 ### LessonPlan
 
 | Column        | Type        | Constraints               |
@@ -212,7 +210,7 @@ Constraints:
 
 ### LessonPlanAssignment
 
-Purpose: binds a plan to a specific student and schedule.
+Purpose: links a plan to a specific student and schedule.
 
 | Column        | Type                                | Constraints                   |
 | ------------- | ----------------------------------- | ----------------------------- |
@@ -232,8 +230,6 @@ Constraints:
 
 ### Report
 
-Purpose: persisted output of generated reports.
-
 | Column            | Type                                 | Constraints               |
 | ----------------- | ------------------------------------ | ------------------------- |
 | id                | uuid                                 | PK                        |
@@ -250,36 +246,3 @@ Purpose: persisted output of generated reports.
 Constraints:
 
 - check(periodEnd >= periodStart)
-
-## Multi-Tenant Isolation Rules
-
-1. All tenant-scoped tables include tenantId and are protected by RLS.
-2. User data access is constrained through Membership and tenant context.
-3. Global events are platform-owned with Event.scope = GLOBAL and Event.tenantId = null.
-4. Participation rows always carry participant tenantId, including for global events.
-
-## Reporting Model Clarification
-
-Reports are generated on demand from source entities:
-
-- EventParticipation and CompetitionParticipation
-- LessonPlanAssignment
-
-Generated outputs can be persisted in Report for auditing, sharing, and regeneration history.
-
-## Indexing Recommendations
-
-1. TeacherDetails: unique(userId)
-2. StudentDetails: unique(userId)
-3. Membership: unique(userId), index(tenantId)
-4. MembershipRole: unique(membershipId, role), index(role)
-5. Event: index(scope, type, startDate), index(tenantId, startDate)
-6. EventParticipation: unique(eventId, participantUserId), index(tenantId, participantUserId)
-7. LessonPlanAssignment: index(tenantId, studentUserId, assignedDate)
-8. Report: index(tenantId, generatedAt), index(requestedByUserId, generatedAt)
-
-## Open Follow-Ups
-
-1. Decide if sysadmin can appear as organizerUserId for global events or if only school users can organize.
-2. Decide whether students can create lesson templates in future versions.
-3. Add explicit retention policy for Report payload size and historical storage window.
