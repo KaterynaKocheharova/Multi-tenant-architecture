@@ -1,6 +1,6 @@
 ## Title
 
-Use "Share everything" approach
+Use "Share everything" approach with RLS
 
 ## Status
 
@@ -31,6 +31,33 @@ Use shared PostgreSQL with Row-Level Security as primary enforcement.
    - **SELECT**: own-tenant rows OR `scope = 'GLOBAL'` rows (+ sysadmin override)
    - **event writes**: restricted to the owning tenant only
    - **participation and award writes**: allow cross-tenant writes when the referenced event has `scope = 'GLOBAL'`, enforced via `EXISTS (SELECT 1 FROM event WHERE scope = 'GLOBAL')` in `WITH CHECK`
+
+## Why?
+
+### 1. Product Requirements Fit
+
+The system requires some **cross-tenant features**: competitions and webinars
+
+A shared database enables simple queries and avoids distributed system complexity.
+If we used multiple databases and need to fetch a specific event participants, we would need to list all dbs, conduct fetching queries for each of them, and finally merge results in application level. In out shared db case we fetch all data with a simple request.
+
+### 2. Fast Development
+
+- single schema
+- one migration pipeline
+
+### 3. Operational Simplicity
+
+- centralized monitoring
+- simpler backups
+- easier maintenance
+- quick tenant onboarding
+
+### 4. Cost Efficiency
+
+- one database instance
+- efficient resource usage
+- no idle infrastructure per tenant (if we used multiple dbs, we would need to pay for each even if data is not used and activity is minimal)
 
 ## Diagram
 

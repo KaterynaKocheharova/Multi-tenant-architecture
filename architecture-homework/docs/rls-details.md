@@ -1,53 +1,4 @@
-# Data Isolation Strategy
-
-## Overview
-
-This system uses a **shared database multi-tenancy model** with strict isolation enforced at the database level.
-
-Each tenant (school) is logically isolated using a `tenantId` (`schoolId`) while still enabling **controlled cross-tenant collaboration** (e.g., webinars, competitions).
-
-## 🏗️ Architecture Choice
-
-### Shared Database
-
-- Single PostgreSQL database
-- Shared tables across all tenants
-- Logical isolation via `tenantId`
-- Database-level enforcement using Row-Level Security (RLS)
-- Application-level safeguards for additional protection
-
-## Why
-
-### 1. Product Requirements Fit
-
-The system requires some **cross-tenant features**: competitions and webinars
-
-A shared database enables simple queries and avoids distributed system complexity.
-If we used multiple databases and need to fetch a specific event participants, we would need to list all dbs, conduct fetching queries for each of them, and finally merge results in application level. In out shared db case we fetch all data with a simple request.
-
-### 2. Fast Development
-
-- single schema
-- one migration pipeline
-
-### 3. Operational Simplicity
-
-- centralized monitoring
-- simpler backups
-- easier maintenance
-- quick tenant onboarding
-
-### 4. Cost Efficiency
-
-- one database instance
-- efficient resource usage
-- no idle infrastructure per tenant (if we used multiple dbs, we would need to pay for each even if data is not used and activity is minimal)
-
-## 🛡️ Isolation Mechanisms
-
-### 1. Row-Level Security (Primary Enforcement)
-
-All tenant-scoped tables must enforce RLS.
+## 🛡️ Isolation Mechanisms- Row-Level Security
 
 Basic example:
 
@@ -222,32 +173,6 @@ Apply table-specific policy variants across the current model:
 - mixed visibility tables: `event`, `event_participation`, `award`
 - global identity tables (`user`, `teacher_details`, `student_details`) should use explicit policies based on `user_id` ownership and admin role, not tenant_id matching
 
-### Request-to-query sequence
-
-`request -> tenant resolve -> authz -> transaction start -> SET LOCAL app.current_tenant -> tenant query`
-
-This sequence guarantees that every tenant-scoped query is executed with tenant context in the same DB transaction.
-
-### 2. Application-Level Guardrails
-
-```typescript
-const tenantPrisma = (tenantId: string) =>
-  prisma.$extends({
-    query: {
-      $allModels: {
-        async findMany({ args, query }) {
-          args.where = { ...args.where, tenantId };
-          return query(args);
-        },
-        async findFirst({ args, query }) {
-          args.where = { ...args.where, tenantId };
-          return query(args);
-        },
-      },
-    },
-  });
-```
-
 ### Reusable wrapper do setting db context
 
 ```typescript
@@ -262,33 +187,3 @@ async function withTenantContext<T>(
   });
 }
 ```
-
-## ⚖️ Data isolation approaches Comparison
-
-### 🟡 Schema per Tenant
-
-**Pros:**
-
-- stronger logical isolation
-
-**Cons:**
-
-- complex migrations
-- more difficult backups
-- poor ORM support
-- more complex cross-tenant queries
-- noisy neighbor
-
-### 🔵 Database per Tenant
-
-**Pros:**
-
-- maximum isolation
-- strong businesses popularity
-- no noisy neighbor
-
-**Cons:**
-
-- high infrastructure complexity
-- very expensive
-- difficult cross-tenant collaboration
