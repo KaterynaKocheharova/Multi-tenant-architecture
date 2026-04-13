@@ -1,13 +1,34 @@
-## Context
+<!-- 📄 What an ADR usually contains
+
+
+Decision
+What you chose
+Consequences
+Pros, cons, and what this decision impacts
+ -->
+
+<!-- 🧩 Example (super simplified)
+
+Decision: Use REST instead of GraphQL
+Why: Team already knows REST, faster to ship
+Trade-off: Less flexibility for frontend later -->
+
+## Title
+
+Use "Share everything" approach
+
+## Status
+
+Accepted
+
+## Context (=== What problem are we solving?)
 
 The system must isolate tenant-owned data while still supporting cross-tenant collaboration for global events.
 
-Requirements:
+## Contraints
 
-- prevent accidental leaks when developers miss tenant filters
-- deny-by-default tenant data access
-- allow controlled sysadmin cross-tenant read access
-- support mixed-visibility tables (`TENANT` + `GLOBAL` rows)
+- limited budget ($3000)
+- limited development time (3 months)
 
 ## Decision
 
@@ -21,16 +42,16 @@ Use shared PostgreSQL with Row-Level Security as primary enforcement.
    - `USING` for read/target row visibility
    - `WITH CHECK` for insert/update row validity
 4. Add role-aware policy variants where sysadmin cross-tenant read is required.
-5. For mixed visibility tables (`event`, related writes), allow:
-   - read global rows by authenticated tenant users
-   - tenant row access only for matching tenant
-   - privileged global writes only by sysadmin
+5. For mixed visibility tables (`event`, `event_participation`, `award`), split SELECT and write policies:
+   - **SELECT**: own-tenant rows OR `scope = 'GLOBAL'` rows (+ sysadmin override)
+   - **event writes**: restricted to the owning tenant only
+   - **participation and award writes**: allow cross-tenant writes when the referenced event has `scope = 'GLOBAL'`, enforced via `EXISTS (SELECT 1 FROM event WHERE scope = 'GLOBAL')` in `WITH CHECK`
 
 ## Diagram
 
 ```mermaid
 flowchart TD
-	 A[Request arrives] --> B[Resolve tenant and role from JWT]
+	 A[Request arrives] --> B[Resolve tenant from JWT]
 	 B --> C[BEGIN transaction]
 	 C --> D[SET LOCAL app.current_tenant]
 	 D --> E[SET LOCAL app.current_global_role]
@@ -45,6 +66,14 @@ flowchart TD
 	 J -->|Yes| L{WITH CHECK true?}
 	 L -->|Yes| M[Write allowed]
 	 L -->|No| N[Write blocked]
+
+	 subgraph "Mixed visibility table write logic (WITH CHECK)"
+		  O{tenant_id matches?} -->|Yes| M
+		  O -->|No| P{Event scope = GLOBAL?}
+		  P -->|Yes| M
+		  P -->|No| N
+	 end
+	 L --> O
 ```
 
 ## Consequences
