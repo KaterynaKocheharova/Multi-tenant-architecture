@@ -21,7 +21,7 @@ Use "Share everything" approach
 
 Accepted
 
-## Context (=== What problem are we solving?)
+## Context
 
 The system must isolate tenant-owned data while still supporting cross-tenant collaboration for global events.
 
