@@ -23,7 +23,7 @@ Each tenant (school) is logically isolated using a `tenantId` (`schoolId`) while
 The system requires some **cross-tenant features**: competitions and webinars
 
 A shared database enables simple queries and avoids distributed system complexity.
-If we use multiple databases and need to fetch a specific event participants, we will need to list all dbs, conduct fetching queries for each of them, and finally merge results in application level. In out shared db case we fetch all data with a simple request.
+If we used multiple databases and need to fetch a specific event participants, we would need to list all dbs, conduct fetching queries for each of them, and finally merge results in application level. In out shared db case we fetch all data with a simple request.
 
 ### 2. Fast Development
 
@@ -41,43 +41,45 @@ If we use multiple databases and need to fetch a specific event participants, we
 
 - one database instance
 - efficient resource usage
-- no idle infrastructure per tenant (if we use multiple dbs, we might need to pay for each even if data is not used and activity is minimal)
+- no idle infrastructure per tenant (if we used multiple dbs, we would need to pay for each even if data is not used and activity is minimal)
 
 ## 🛡️ Isolation Mechanisms
 
 ### 1. Row-Level Security (Primary Enforcement)
 
-Tables must enforce enforce RLS:
+All tenant-scoped tables must enforce RLS.
+
+Basic example:
 
 ```sql
-ALTER TABLE projects ENABLE ROW LEVEL SECURITY;
+ALTER TABLE table_name ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY tenant_isolation ON projects
+CREATE POLICY tenant_isolation ON table_name
 USING (tenant_id = current_setting('app.current_tenant')::uuid);
 ```
 
-Each database connection must set:
+Each request transaction must set tenant and role context:
 
 ```sql
-SET app.current_tenant = 'tenant-uuid-here';
+SET LOCAL app.current_tenant = 'tenant-uuid-here';
+SET LOCAL app.current_global_role = 'Member'; -- or 'Sysadmin'
 ```
 
-### When to set tenant context
-
-Set tenant context when a request (or background job) starts database work, not just in HTTP middleware.
+### When to set
 
 Recommended order:
 
-1. resolve tenant from request (subdomain/header/token)
+1. resolve tenant from request
 2. authenticate and authorize user for that tenant
 3. open a DB transaction
-4. set tenant context in that transaction
+4. set tenant and global role context in that transaction
 5. run tenant-scoped queries using the same transaction client
 
 Use `SET LOCAL` inside a transaction to avoid context leakage across pooled connections:
 
 ```sql
 SET LOCAL app.current_tenant = 'tenant-uuid-here';
+SET LOCAL app.current_global_role = 'Member';
 ```
 
 **What it does:**
@@ -87,15 +89,13 @@ SET LOCAL app.current_tenant = 'tenant-uuid-here';
 
 ### Deny-by-default RLS setup (no tenant context = no rows)
 
-Use RLS policies that only allow rows when tenant context is present and matches the row tenant.
-
 ```sql
-ALTER TABLE projects ENABLE ROW LEVEL SECURITY;
-ALTER TABLE projects FORCE ROW LEVEL SECURITY;
+ALTER TABLE table_name ENABLE ROW LEVEL SECURITY;
+ALTER TABLE table_name FORCE ROW LEVEL SECURITY;
 
-DROP POLICY IF EXISTS tenant_isolation ON projects;
+DROP POLICY IF EXISTS tenant_isolation ON table_name;
 
-CREATE POLICY tenant_isolation ON projects
+CREATE POLICY tenant_isolation ON table_name
 FOR ALL
 USING (
   current_setting('app.current_tenant', true) IS NOT NULL
@@ -107,21 +107,33 @@ WITH CHECK (
 );
 ```
 
-Why this is deny-by-default:
+### Sysadmin access without disabling RLS
 
-- `current_setting('app.current_tenant', true)` returns `NULL` when unset
-- policy condition becomes false, so `SELECT/UPDATE/DELETE` see zero rows
-- `WITH CHECK` blocks `INSERT/UPDATE` when tenant context is missing or mismatched
+For tables where platform sysadmins must read across tenants, add a role-aware condition.
 
-Additional hardening:
+```sql
+CREATE POLICY tenant_or_sysadmin_select ON table_name
+FOR SELECT
+USING (
+  (
+    current_setting('app.current_tenant', true) IS NOT NULL
+    AND tenant_id = current_setting('app.current_tenant', true)::uuid
+  )
+  OR current_setting('app.current_global_role', true) = 'Sysadmin'
+);
+```
 
-- ensure your app DB role does **not** have `BYPASSRLS`
-- avoid using table owner/superuser for normal app queries
-- keep using `SET LOCAL app.current_tenant = ...` inside transactions
+### Mixed visibility tables (tenant + global rows)
+
+Can also be handled by rls.
 
 ### Coverage scope
 
-This policy pattern is applied to **all tenant-scoped tables** (not only `projects`): `users`, `courses`, `events_participation`, `submissions`, and any table containing tenant-owned data.
+Apply table-specific policy variants across the current model:
+
+- strict tenant tables: `membership`, `membership_role`, `teacher_student_assignment`, `lesson_plan`, `lesson_plan_assignment`, `report`
+- mixed visibility tables: `event`, `event_participation`, `award`
+- global identity tables (`user`, `teacher_details`, `student_details`) should use explicit policies based on `user_id` ownership and admin role, not tenant_id matching
 
 ### Request-to-query sequence
 
@@ -149,9 +161,7 @@ const tenantPrisma = (tenantId: string) =>
   });
 ```
 
-### Reusable wrapper (do not repeat per endpoint)
-
-Do not add `SET LOCAL` manually in every handler. Implement once as a shared helper and call it from services.
+### Reusable wrapper do setting db context
 
 ```typescript
 async function withTenantContext<T>(
@@ -166,41 +176,7 @@ async function withTenantContext<T>(
 }
 ```
 
-Usage pattern:
-
-- middleware: resolve tenant and auth
-- service: call `withTenantContext(tenantId, ...)`
-- repositories: use the provided transaction client (`tx`)
-
-### Verification checklist
-
-- **Test 1 (no context):** without `app.current_tenant`, tenant table queries return zero rows
-- **Test 2 (cross-tenant read):** tenant A cannot read rows owned by tenant B
-- **Test 3 (cross-tenant write):** `INSERT/UPDATE` with mismatched `tenant_id` is blocked by `WITH CHECK`
-
-## 🔄 Cross-Tenant Collaboration Model
-
-### Key Principle
-
-Cross-tenant access is designed, but not accidental
-
-### Example Data Model
-
-**Event**
-
-- `ownerTenantId` (nullable → global event)
-
-**Participation**
-
-- `tenantId` (participant's school)
-
-### Behavior
-
-- events can be shared across tenants
-- participation remains tenant-scoped
-- data access is controlled and intentional
-
-## ⚖️ Comparison with Alternatives
+## ⚖️ Data isolation approaches Comparison
 
 ### 🟡 Schema per Tenant
 
@@ -213,7 +189,8 @@ Cross-tenant access is designed, but not accidental
 - complex migrations
 - more difficult backups
 - poor ORM support
-- difficult cross-tenant queries
+- more complex cross-tenant queries
+- noisy neighbor
 
 ### 🔵 Database per Tenant
 
