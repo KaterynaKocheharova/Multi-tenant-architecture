@@ -74,7 +74,7 @@ USING (
 );
 ```
 
-### Mixed visibility tables (tenant + global rows)
+### Mixed visibility tables
 
 Tables like `event`, `event_participation`, and `award` contain a mix of tenant-scoped and global rows.
 
@@ -162,8 +162,6 @@ WITH CHECK (
   )
 );
 ```
-
-> The `EXISTS` subquery on `event.scope` is the single source of truth — no application layer needs to duplicate this check for cross-tenant writes.
 
 ### Coverage scope
 
