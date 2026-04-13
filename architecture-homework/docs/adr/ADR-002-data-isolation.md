@@ -1,18 +1,3 @@
-<!-- 📄 What an ADR usually contains
-
-
-Decision
-What you chose
-Consequences
-Pros, cons, and what this decision impacts
- -->
-
-<!-- 🧩 Example (super simplified)
-
-Decision: Use REST instead of GraphQL
-Why: Team already knows REST, faster to ship
-Trade-off: Less flexibility for frontend later -->
-
 ## Title
 
 Use "Share everything" approach
@@ -82,22 +67,29 @@ flowchart TD
 
 - database-enforced tenant boundaries
 - safer behavior when app-level filters are missing
-- explicit, auditable access rules per table type
 - supports global event collaboration without disabling isolation
 
 ### Negative
 
 - policy management complexity increases
 - migration/testing must include policy verification
-- developers must always run tenant-scoped DB work in context wrapper
+- developers must always run tenant-scoped DB work in the context wrapper — without it, `current_setting('app.current_tenant', true)` returns `NULL`, so `USING` evaluates to false and reads return 0 rows silently, which might be hard to debug; `WITH CHECK` evaluates to false and writes are rejected with a policy violation error
 
 ## Alternatives Considered
 
 1. Schema per tenant.
-   - Rejected: migration and operational overhead, weaker cross-tenant query ergonomics.
+   - Rejected: migration and operational difficulty, more complex cross-tenant query.
+   - Pros: stronger logical isolation than shared tables.
+   - Cons: complex migrations, difficult backups, poor ORM support (most ORMs assume a single schema), more complex cross-tenant queries, noisy neighbor problem still present at DB level.
+
 2. Database per tenant.
-   - Rejected: high operational cost and complexity for collaboration features.
+   - Rejected: the same as "schema per tenant" but also much more difficult and not enough users for a single db instance (each school having 50 - 300 users, which is not enough to start a new db each time)
+   - Pros: maximum isolation, no noisy neighbor, popular with enterprise SaaS.
+   - Cons: high infrastructure complexity, very expensive (idle DB cost per tenant even at low activity), cross-tenant collaboration requires distributed queries or data duplication.
+
 3. Application-only tenant filtering (no RLS).
-   - Rejected: insufficient safety against accidental leaks.
+   - Rejected: insufficient safety against accidental leaks (developers skip where and data leakage occurs)
+   - Cons: one missed `where tenantId = ...` clause leaks data silently; no database-level backstop.
+
 4. Hybrid - decision based on the tier.
-   - Rejected: there is no plan for tiers, all schools are equal.
+   - Rejected: there is no plan for tiers, all schools are supposed to be equal. However, we might migrate to this partially if some tenants are very big, which is unlikely in the near future.
