@@ -7,116 +7,116 @@ This document contains Mermaid ER diagrams based on the current data model in `d
 ```mermaid
 erDiagram
     TENANT {
-        uuid id PK
-        text name
-        enum status
+        id uuid PK
+        name text
+        status enum
     }
 
     USER {
-        uuid id PK
-        text fullName
-        citext email
-        enum globalRole
-        boolean isActive
+        id uuid PK
+        fullName text
+        email citext
+        globalRole enum
+        isActive boolean
     }
 
     TEACHER_DETAILS {
-        uuid id PK
-        uuid userId FK
-        text musicalInstrument
+        id uuid PK
+        userId uuid FK
+        musicalInstrument text
     }
 
     STUDENT_DETAILS {
-        uuid id PK
-        uuid userId FK
-        text musicalInstrument
-        text classNumber
+        id uuid PK
+        userId uuid FK
+        musicalInstrument text
+        classNumber text
     }
 
     MEMBERSHIP {
-        uuid id PK
-        uuid userId FK
-        uuid tenantId FK
-        enum status
+        id uuid PK
+        userId uuid FK
+        tenantId uuid FK
+        status enum
     }
 
     MEMBERSHIP_ROLE {
-        uuid id PK
-        uuid membershipId FK
-        enum role
+        id uuid PK
+        membershipId uuid FK
+        role enum
     }
 
     TEACHER_STUDENT_ASSIGNMENT {
-        uuid id PK
-        uuid tenantId FK
-        uuid teacherUserId FK
-        uuid studentUserId FK
-        enum status
+        id uuid PK
+        tenantId uuid FK
+        teacherUserId uuid FK
+        studentUserId uuid FK
+        status enum
     }
 
     EVENT {
-        uuid id PK
-        enum scope
-        uuid tenantId FK
-        enum type
-        text name
-        text topic
-        text videoUrl
-        uuid organizerUserId FK
-        uuid createdBy FK
+        id uuid PK
+        scope enum
+        tenantId uuid FK
+        type enum
+        name text
+        topic text
+        videoUrl text
+        organizerUserId uuid FK
+        createdBy uuid FK
     }
 
     EVENT_PARTICIPATION {
-        uuid id PK
-        uuid eventId FK
-        uuid participantUserId FK
-        uuid tenantId FK
-        enum roleInEvent
-        boolean attended
+        id uuid PK
+        eventId uuid FK
+        participantUserId uuid FK
+        tenantId uuid FK
+        roleInEvent enum
+        attended boolean
     }
 
     COMPETITION_PARTICIPATION {
-        uuid participationId PK, FK
-        numeric grade
-        integer place
-        text juryNotes
+        participationId uuid PK, FK
+        grade numeric
+        place integer
+        juryNotes text
     }
 
     AWARD {
-        uuid id PK
-        uuid eventId FK
-        uuid tenantId FK
-        uuid participantId FK
-        text title
-        text s3Url
-        timestamptz issuedAt
+        id uuid PK
+        eventId uuid FK
+        tenantId uuid FK
+        participantId uuid FK
+        title text
+        s3Url text
+        issuedAt timestamptz
     }
 
     LESSON_PLAN {
-        uuid id PK
-        uuid tenantId FK
-        uuid teacherUserId FK
-        boolean isTemplate
-        text title
+        id uuid PK
+        tenantId uuid FK
+        teacherUserId uuid FK
+        isTemplate boolean
+        title text
     }
 
     LESSON_PLAN_ASSIGNMENT {
-        uuid id PK
-        uuid lessonPlanId FK
-        uuid tenantId FK
-        uuid studentUserId FK
-        date assignedDate
-        enum status
+        id uuid PK
+        lessonPlanId uuid FK
+        tenantId uuid FK
+        studentUserId uuid FK
+        assignedDate date
+        status enum
     }
 
     REPORT {
-        uuid id PK
-        uuid tenantId FK
-        uuid requestedByUserId FK
-        uuid teacherUserId FK
-        date periodStart
-        date periodEnd
-        enum reportType
+        id uuid PK
+        tenantId uuid FK
+        requestedByUserId uuid FK
+        teacherUserId uuid FK
+        periodStart date
+        periodEnd date
+        reportType enum
     }
 
     USER ||--o| TEACHER_DETAILS : has
@@ -157,40 +157,40 @@ erDiagram
 ```mermaid
 erDiagram
     TENANT {
-        uuid id PK
-        text name
+        id uuid PK
+        name text
     }
 
     USER {
-        uuid id PK
-        text fullName
-        citext email
-        enum globalRole
+        id uuid PK
+        fullName text
+        email citext
+        globalRole enum
     }
 
     TEACHER_DETAILS {
-        uuid id PK
-        uuid userId FK
-        text musicalInstrument
+        id uuid PK
+        userId uuid FK
+        musicalInstrument text
     }
 
     STUDENT_DETAILS {
-        uuid id PK
-        uuid userId FK
-        text musicalInstrument
-        text classNumber
+        id uuid PK
+        userId uuid FK
+        musicalInstrument text
+        classNumber text
     }
 
     MEMBERSHIP {
-        uuid id PK
-        uuid userId FK
-        uuid tenantId FK
+        id uuid PK
+        userId uuid FK
+        tenantId uuid FK
     }
 
     MEMBERSHIP_ROLE {
-        uuid id PK
-        uuid membershipId FK
-        enum role
+        id uuid PK
+        membershipId uuid FK
+        role enum
     }
 
     USER ||--o| TEACHER_DETAILS : has
@@ -205,47 +205,47 @@ erDiagram
 ```mermaid
 erDiagram
     TENANT {
-        uuid id PK
-        text name
+        id uuid PK
+        name text
     }
 
     USER {
-        uuid id PK
-        text fullName
+        id uuid PK
+        fullName text
     }
 
     EVENT {
-        uuid id PK
-        enum scope
-        uuid tenantId FK
-        enum type
-        text name
-        text videoUrl
-        uuid organizerUserId FK
+        id uuid PK
+        scope enum
+        tenantId uuid FK
+        type enum
+        name text
+        videoUrl text
+        organizerUserId uuid FK
     }
 
     EVENT_PARTICIPATION {
-        uuid id PK
-        uuid eventId FK
-        uuid participantUserId FK
-        uuid tenantId FK
-        enum roleInEvent
-        boolean attended
+        id uuid PK
+        eventId uuid FK
+        participantUserId uuid FK
+        tenantId uuid FK
+        roleInEvent enum
+        attended boolean
     }
 
     COMPETITION_PARTICIPATION {
-        uuid participationId PK, FK
-        numeric grade
-        integer place
+        participationId uuid PK, FK
+        grade numeric
+        place integer
     }
 
     AWARD {
-        uuid id PK
-        uuid eventId FK
-        uuid tenantId FK
-        uuid participantId FK
-        text title
-        text s3Url
+        id uuid PK
+        eventId uuid FK
+        tenantId uuid FK
+        participantId uuid FK
+        title text
+        s3Url text
     }
 
     TENANT ||--o{ EVENT : owns_tenant_events
@@ -264,47 +264,47 @@ erDiagram
 ```mermaid
 erDiagram
     TENANT {
-        uuid id PK
-        text name
+        id uuid PK
+        name text
     }
 
     USER {
-        uuid id PK
-        text fullName
+        id uuid PK
+        fullName text
     }
 
     LESSON_PLAN {
-        uuid id PK
-        uuid tenantId FK
-        uuid teacherUserId FK
-        boolean isTemplate
-        text title
+        id uuid PK
+        tenantId uuid FK
+        teacherUserId uuid FK
+        isTemplate boolean
+        title text
     }
 
     LESSON_PLAN_ASSIGNMENT {
-        uuid id PK
-        uuid lessonPlanId FK
-        uuid tenantId FK
-        uuid studentUserId FK
-        date assignedDate
-        enum status
+        id uuid PK
+        lessonPlanId uuid FK
+        tenantId uuid FK
+        studentUserId uuid FK
+        assignedDate date
+        status enum
     }
 
     REPORT {
-        uuid id PK
-        uuid tenantId FK
-        uuid requestedByUserId FK
-        uuid teacherUserId FK
-        date periodStart
-        date periodEnd
-        enum reportType
+        id uuid PK
+        tenantId uuid FK
+        requestedByUserId uuid FK
+        teacherUserId uuid FK
+        periodStart date
+        periodEnd date
+        reportType enum
     }
 
     TEACHER_STUDENT_ASSIGNMENT {
-        uuid id PK
-        uuid tenantId FK
-        uuid teacherUserId FK
-        uuid studentUserId FK
+        id uuid PK
+        tenantId uuid FK
+        teacherUserId uuid FK
+        studentUserId uuid FK
     }
 
     TENANT ||--o{ LESSON_PLAN : scopes
