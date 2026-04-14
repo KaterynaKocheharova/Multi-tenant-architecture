@@ -16,6 +16,7 @@
 12. LessonPlan
 13. LessonPlanAssignment
 14. Report
+15. MagicLink
 
 ## Tables
 
@@ -31,20 +32,22 @@
 
 ### User
 
-| Column     | Type                   | Constraints             |
-| ---------- | ---------------------- | ----------------------- |
-| id         | uuid                   | PK                      |
-| fullName   | text                   | not null                |
-| email      | citext                 | unique, not null        |
-| globalRole | enum(Sysadmin, Member) | not null default Member |
-| isActive   | boolean                | not null default true   |
-| createdAt  | timestamptz            | not null                |
-| updatedAt  | timestamptz            | not null                |
+| Column       | Type                   | Constraints             |
+| ------------ | ---------------------- | ----------------------- |
+| id           | uuid                   | PK                      |
+| fullName     | text                   | not null                |
+| email        | citext                 | unique, not null        |
+| passwordHash | text                   | not null                |
+| globalRole   | enum(Sysadmin, Member) | not null default Member |
+| isActive     | boolean                | not null default true   |
+| createdAt    | timestamptz            | not null                |
+| updatedAt    | timestamptz            | not null                |
 
 Notes:
 
-- `User` stores platform identity only.
+- `User` stores platform identity and password credential hash.
 - `globalRole` defines platform-level access outside tenant-scoped roles.
+- Raw passwords are never stored; only `passwordHash` is persisted.
 - Role-specific profile details are moved to `TeacherDetails` and `StudentDetails`.
 
 ### TeacherDetails
@@ -100,6 +103,26 @@ Purpose: stores one or more roles assigned to a membership.
 Constraints:
 
 - unique(membershipId, role)
+
+### MagicLink
+
+Purpose: stores one-time passwordless authentication links.
+
+| Column     | Type        | Constraints               |
+| ---------- | ----------- | ------------------------- |
+| id         | uuid        | PK                        |
+| userId     | uuid        | FK -> User.id, not null   |
+| tenantId   | uuid        | FK -> Tenant.id, not null |
+| tokenHash  | text        | unique, not null          |
+| expiresAt  | timestamptz | not null                  |
+| consumedAt | timestamptz | null                      |
+| createdAt  | timestamptz | not null                  |
+
+Notes:
+
+- raw magic-link tokens are never stored
+- token is valid only once
+- expired or consumed links must be rejected during verification
 
 ### TeacherStudentAssignment
 

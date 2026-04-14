@@ -16,6 +16,7 @@ erDiagram
         id uuid PK
         fullName text
         email citext
+        passwordHash text
         globalRole enum
         isActive boolean
     }
@@ -44,6 +45,15 @@ erDiagram
         id uuid PK
         membershipId uuid FK
         role enum
+    }
+
+    MAGIC_LINK {
+        id uuid PK
+        userId uuid FK
+        tenantId uuid FK
+        tokenHash text
+        expiresAt timestamptz
+        consumedAt timestamptz
     }
 
     TEACHER_STUDENT_ASSIGNMENT {
@@ -122,7 +132,9 @@ erDiagram
     USER ||--o| TEACHER_DETAILS : has
     USER ||--o| STUDENT_DETAILS : has
     USER ||--o| MEMBERSHIP : has
+    USER ||--o{ MAGIC_LINK : has
     TENANT ||--o{ MEMBERSHIP : has
+    TENANT ||--o{ MAGIC_LINK : has
     MEMBERSHIP ||--o{ MEMBERSHIP_ROLE : has
 
     TENANT ||--o{ TEACHER_STUDENT_ASSIGNMENT : has
@@ -162,6 +174,7 @@ erDiagram
         id uuid PK
         fullName text
         email citext
+        passwordHash text
         globalRole enum
     }
 
@@ -190,10 +203,19 @@ erDiagram
         role enum
     }
 
+    MAGIC_LINK {
+        id uuid PK
+        userId uuid FK
+        tenantId uuid FK
+        tokenHash text
+    }
+
     USER ||--o| TEACHER_DETAILS : has
     USER ||--o| STUDENT_DETAILS : has
     USER ||--o| MEMBERSHIP : has
+    USER ||--o{ MAGIC_LINK : has
     TENANT ||--o{ MEMBERSHIP : has
+    TENANT ||--o{ MAGIC_LINK : has
     MEMBERSHIP ||--o{ MEMBERSHIP_ROLE : has
 ```
 

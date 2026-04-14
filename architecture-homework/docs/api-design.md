@@ -21,7 +21,9 @@ This document defines API contracts for:
 ### Auth
 
 - `POST /auth/login`
+- `POST /auth/request-magic-link`
 - `POST /auth/verify-magic-link`
+- `POST /auth/refresh`
 - `POST /auth/logout`
 - `GET /auth/me`
 
@@ -84,7 +86,7 @@ This document defines API contracts for:
 
 ## TENANT MANAGEMENT
 
-Shared access rule for all tenant management endpoints in this section:
+For all endpoints access rules are the same:
 
 - Required auth: yes
 - Allowed roles: `globalRole = Sysadmin`
@@ -100,7 +102,8 @@ Request body:
   "name": "Kyiv Music School #7",
   "initialAdmin": {
     "fullName": "Olena Bondarenko",
-    "email": "admin@school7.edu.ua"
+    "email": "admin@school7.edu.ua",
+    "password": "StrongPass!123"
   }
 }
 ```
@@ -112,7 +115,7 @@ Response `201`:
   "id": "9c926e8a-2e4e-4490-98a0-725d32ba1628",
   "name": "Kyiv Music School #7",
   "status": "active",
-  "createdAt": "2026-04-14T08:10:00Z
+  "createdAt": "2026-04-14T08:10:00Z"
 }
 ```
 
@@ -120,11 +123,12 @@ Internal flow:
 
 1. `TenantManagementModule.SchoolService` validates caller is Sysadmin.
 2. Create row in `tenant` (`status=active`).
-3. Create `user` row from `initialAdmin.fullName` + `initialAdmin.email`.
-4. Create `membership` row linking new admin user to the new tenant.
-5. Create `membership_role` with `schoolAdmin`.
-6. Trigger magic-link onboarding/login email for `initialAdmin.email` (non-blocking side effect).
-7. Return data. Membership and role assignment are active immediately, regardless of whether onboarding email is opened/completed as the school admin is now able to login at any time.
+3. Hash `initialAdmin.password` using strong password hashing algorithm (`argon2id` or `bcrypt`).
+4. Create `user` row from `initialAdmin.fullName` + `initialAdmin.email`, storing `passwordHash`.
+5. Create `membership` row linking new admin user to the new tenant.
+6. Create `membership_role` with `schoolAdmin`.
+7. Trigger magic-link onboarding/login email for `initialAdmin.email` (non-blocking side effect).
+8. Return data. Membership and role assignment are active immediately, regardless of whether onboarding email is opened/completed as the school admin is now able to login at any time.
 
 ### GET /tenants
 
@@ -207,15 +211,32 @@ Internal flow:
 3. Optionally suspend tenant memberships asynchronously.
 4. Return updated tenant state.
 
-<!-- !!!!!!!!!!!!!!!!!1 -->
+## AUTH
 
-## AUTH (verification links)
+Shared token handling:
+
+- Browser clients receive both `access_token` and `refresh_token` via `Set-Cookie` headers.
+- `access_token`: short-lived JWT, `HttpOnly`, `Secure`, `SameSite=Lax`, `Path=/`.
+- `refresh_token`: long-lived token, `HttpOnly`, `Secure`, `SameSite=Strict`, `Path=/auth`.
+- Protected endpoints may also accept `Authorization: Bearer <accessToken>` for non-browser clients.
+- Access JWTs are normally validated by signature and expiry; if immediate logout or forced revocation is required, server also checks token `jti` against a revoked-token denylist.
+- Refresh tokens are stored server-side only as hashed values and are rotated on refresh.
+- Magic-link tokens are stored server-side only as hashed values in the `magic_link` table.
+
+Additional safety measures:
+
+- short access-token TTL
+- refresh-token rotation on every refresh
+- revoke all refresh sessions on password change or admin suspension
+- CSRF protection for cookie-based browser flows
+- rate limiting for `/auth/login`, `/auth/request-magic-link`, and `/auth/verify-magic-link`
+- never log raw access tokens, refresh tokens, or magic-link tokens
 
 ### POST /auth/login
 
 Starts passwordless login by sending magic link.
 
-Auth and roles:
+Access rules:
 
 - Required auth: no
 
@@ -224,15 +245,9 @@ Request body:
 ```json
 {
   "email": "teacher@school-a.edu.ua",
-  "tenantId": "9c926e8a-2e4e-4490-98a0-725d32ba1628"
+  "password": "Secret9c926e8a"
 }
 ```
-
-Validation:
-
-- `email`: required, valid email
-- `tenantId`: required UUID
-- user must exist, be active, and have active membership in tenant
 
 Response `200`:
 
@@ -245,17 +260,16 @@ Response `200`:
 Internal flow:
 
 1. `AuthService` normalizes email.
-2. Resolve user and tenant membership.
-3. Generate one-time short-lived verification token (signed JWT or opaque token with DB/JTI storage).
-4. Build link containing token and tenant context.
-5. Send email via notification provider.
-6. Return generic response to avoid account enumeration.
+2. Check if user exists with the email. If not, return 401.
+3. Generate one-time short-lived magic-link token.
+4. Store only token hash in `magic_link` table with expiry.
+5. Build magic link containing token.
+6. Send email via notification provider.
+7. Return generic response to avoid account enumeration.
 
 ### POST /auth/verify-magic-link
 
-Verifies magic link token and issues session tokens.
-
-Auth and roles:
+Access rules:
 
 - Required auth: no
 
@@ -267,100 +281,116 @@ Request body:
 }
 ```
 
-Validation:
+Response `200`:
 
-- token exists, signature valid, not expired, not already used
-- referenced user active
-- membership for embedded tenant is active
+Headers:
+
+- `Set-Cookie: access_token=<jwt>; HttpOnly; Secure; SameSite=Lax; Path=/`
+- `Set-Cookie: refresh_token=<refresh-token>; HttpOnly; Secure; SameSite=Strict; Path=/auth`
+
+```json
+{
+  "user": {
+    "id": "a40ba58a-1b43-4f6b-8bd3-7dc6d8a47902",
+    "fullName": "Olena Bondarenko",
+    "email": "teacher@school-a.edu.ua",
+    "globalRole": "Member"
+  }
+}
+```
+
+Internal flow:
+
+1. `TokenService` validates token against stored `magic_link.tokenHash` and expiry.
+2. Check if magic link already consumed. If consumed, return 401.
+3. Mark magic token as consumed.
+4. Load `user` and `membership`.
+5. Generate short-lived access JWT and refresh token.
+6. Persist only refresh-token hash in server-side session storage.
+7. Return tokens in cookies and base user data in response body.
+
+### POST /auth/refresh
+
+Issues a new access token and rotates refresh token.
+
+Access rules:
+
+- Required auth: only refresh token in cookie
+
+Request body: none
+
+Response `200`:
+
+Headers:
+
+- `Set-Cookie: access_token=<jwt>; HttpOnly; Secure; SameSite=Lax; Path=/`
+- `Set-Cookie: refresh_token=<new-refresh-token>; HttpOnly; Secure; SameSite=Strict; Path=/auth`
+
+```json
+{
+  "refreshed": true
+}
+```
+
+Internal flow:
+
+1. Read `refresh_token` cookie.
+2. Verify token signature or value and locate matching hashed refresh-token record.
+3. Reject expired, revoked, or reused refresh tokens.
+4. Rotate refresh token: revoke old one and persist hash of new one.
+5. Generate new access JWT.
+6. Return new tokens in cookies.
+
+### POST /auth/logout
+
+Acess rules:
+
+- Required auth: yes
+- Allowed roles: any authenticated user
+
+Response `204` (no body)
+
+Headers:
+
+- `Set-Cookie: access_token=; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=0`
+- `Set-Cookie: refresh_token=; HttpOnly; Secure; SameSite=Strict; Path=/auth; Max-Age=0`
+
+Internal flow:
+
+1. Authenticate access token.
+2. Read current refresh token from cookie and revoke its server-side record.
+3. Add current access-token `jti` to short-lived denylist when immediate logout is required.
+4. Clear auth cookies.
+5. Return `204`.
+
+### GET /auth/me
+
+Access rules:
+
+- Required auth: yes
+- Allowed roles: any authenticated user
 
 Response `200`:
 
 ```json
 {
-  "accessToken": "<jwt>",
-  "refreshToken": "<refresh-token>",
-  "expiresIn": 900,
   "user": {
     "id": "a40ba58a-1b43-4f6b-8bd3-7dc6d8a47902",
     "fullName": "Olena Bondarenko",
     "email": "teacher@school-a.edu.ua",
     "globalRole": "Member"
-  },
-  "tenant": {
-    "id": "9c926e8a-2e4e-4490-98a0-725d32ba1628",
-    "roles": ["teacher"]
   }
 }
 ```
 
 Internal flow:
 
-1. `TokenService` validates token integrity and TTL.
-2. Mark magic token as consumed (single-use).
-3. Load `user`, `membership`, `membership_role`.
-4. Build JWT claims (`userId`, `tenantId`, `globalRole`, tenant roles).
-5. Return access + refresh tokens.
+1. Read access token from cookie or `Authorization` header.
+2. Decode JWT claims - userId and tenantId.
+3. Resolve user and current tenant membership.
+4. Return profile data.
 
-### POST /auth/logout
-
-Invalidates current session.
-
-Auth and roles:
-
-- Required auth: yes
-- Allowed roles: any authenticated user
-
-Request body:
-
-```json
-{
-  "refreshToken": "<refresh-token>"
-}
-```
-
-Response `204` (no body)
-
-Internal flow:
-
-1. Authenticate access token.
-2. Revoke refresh token (denylist or delete token row).
-3. Optionally revoke access-token JTI for immediate logout behavior.
-4. Return `204`.
-
-### GET /auth/me
-
-Returns authenticated identity with tenant membership and roles.
-
-Auth and roles:
-
-- Required auth: yes
-- Allowed roles: any authenticated user
-
-Response `200`:
-
-```json
-{
-  "user": {
-    "id": "a40ba58a-1b43-4f6b-8bd3-7dc6d8a47902",
-    "fullName": "Olena Bondarenko",
-    "email": "teacher@school-a.edu.ua",
-    "globalRole": "Member",
-    "isActive": true
-  },
-  "membership": {
-    "id": "be2e1579-4af1-4bc8-9bc8-e292af5f41c9",
-    "tenantId": "9c926e8a-2e4e-4490-98a0-725d32ba1628",
-    "status": "active",
-    "roles": ["teacher"]
-  }
-}
-```
-
-Internal flow:
-
-1. Decode JWT claims.
-2. Resolve user and current tenant membership.
-3. Return consolidated profile DTO for frontend bootstrapping.
+<!-- !!!!!!!!!!!!!!!!!!!! -->
 
 ## IDENTITY AND MEMBERSHIP
 
@@ -1609,6 +1639,7 @@ This section shows where each ERD table is created/read/updated by the API.
 - `event`: `POST /events`, `PATCH /events/:id`, `GET /events`, `GET /events/:id`, `POST /events/upload-video`
 - `event_participation`: `POST /events/register`, `GET /events/:id/participants`, `POST /events/:id/attendance`, `POST /events/submit-video`
 - `competition_participation`: `POST /events/register` (create for competition), `POST /events/grade-performance`, `POST /events/assign-place`, `GET /events/:id/participants`
+- `magic_link`: `POST /auth/request-magic-link`, `POST /auth/verify-magic-link`, `POST /tenants` (initial admin onboarding link)
 - `award`: not exposed as API endpoint in current scope (table reserved for future certificate workflows)
 - `lesson_plan`: `POST /lesson-plans`, `GET /lesson-plans`, `GET /lesson-plans/:id`, `PATCH /lesson-plans/:id`, `POST /lesson-plans/:id/create-from-template`
 - `lesson_plan_assignment`: `POST /lesson-plans/:id/assignments`, `GET /lesson-plans/assignments`, `PATCH /lesson-plans/assignments/:id`
