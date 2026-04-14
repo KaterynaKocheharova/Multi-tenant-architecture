@@ -20,51 +20,43 @@ This document defines API contracts for:
 
 ### Auth
 
-- `POST /auth/login`
-- `POST /auth/request-magic-link`
-- `POST /auth/verify-magic-link`
+- `POST /auth/login` - password validation + request magic link
+- `POST /auth/verify-magic-link` - real login
 - `POST /auth/refresh`
 - `POST /auth/logout`
 - `GET /auth/me`
 
 ### Identity and Membership
 
-- `GET /users`
-- `POST /users`
-- `GET /users/:id`
-- `PATCH /users/:id`
-- `POST /memberships`
-- `PATCH /memberships/:id/status`
-- `POST /memberships/:id/roles`
-- `DELETE /memberships/:id/roles/:role`
+- `GET /users/:tenantId`
+- `POST /users/:tenantId` - create user, memebership and memebershipRole in one go
 
-### Teacher Profile
+### Teacher
 
-- `PUT /teachers/:userId/profile`
+- `GET /teachers/:userId` - teacher or schooladmin can fetch this data
+- `PATCH /teachers/:userId` - teacher or shooladmin can edit
 
-#### Student Profile
+#### Student
 
-- `PUT /students/:userId/profile`
-
-#### Teacher-Student Assignments
-
-- `POST /teacher-student-assignments`
-- `PATCH /teacher-student-assignments/:id/status`
-- `GET /teacher-student-assignments`
+- `POST /students` - teacher creates a student and they're automatically linked in teacher_student_assignment
+- `GET /students/:userId` - teacher or schooladmin can fetch this data
+- `PATCH /students/:userId` - teacher or shooladmin can edit
 
 ### Events
 
 - `GET /events`
 - `GET /events/:id`
-- `POST /events`
-- `PATCH /events/:id`
+- `POST /events` - create an event
+- `PATCH /events/:id` - update an event (organizer only)
 - `POST /events/register`
 - `GET /events/:id/participants`
-- `POST /events/:id/attendance`
-- `POST /events/upload-video`
-- `POST /events/submit-video`
-- `POST /events/assign-place`
-- `POST /events/grade-performance`
+- `POST /events/:id/attendance` - mark attendance (called for webinars)
+- `POST /events/request-video-upload` - (for concerts and webinars) generate presign url where frontend will be able to load the video
+- `POST /events/request-video-submission` - the same but for concerts and competitions
+- `POST /events/complete-video-upload` - frontend sends video url back to backend where backend stores the video link in the db
+- `POST /events/complete-video-submit` - the same but for competitions and concerts
+- `POST /events/assign-place` - for competitions
+- `POST /events/grade-performance` - for competitions
 
 ### Lesson Plans
 
@@ -83,6 +75,8 @@ This document defines API contracts for:
 - `GET /reports`
 - `GET /reports/:id`
 - `PATCH /reports/:id`
+
+## Some most important endpoints breakdown
 
 ## TENANT MANAGEMENT
 
@@ -471,13 +465,9 @@ Internal flow:
 3. Send onboarding link to the website. User will be redirected to login and fill in their initial credentials. On the first login, they will also be able to change their password.
 4. Return created identity.
 
-<!-- !!!!!!!!!!!!!!1 -->
-
 ## EVENTS
 
 ### GET /events
-
-Returns list of visible events.
 
 Auth and roles:
 
@@ -492,6 +482,7 @@ Query parameters:
 - `to`: ISO datetime (optional)
 - `page`: integer, default `1`
 - `pageSize`: integer, default `20`, max `100`
+- `tenantId`: uuid - required if event is not global
 
 Response `200`:
 
@@ -519,10 +510,11 @@ Response `200`:
 
 Internal flow:
 
-1. Resolve JWT claims and open tenant-scoped transaction context.
-2. `EventQueryService` composes filters.
-3. DB read from `event`; RLS allows own-tenant rows and global rows (`scope=GLOBAL`) according to policy.
-4. Return paginated result.
+1. Get tenantId from jwt.
+2. If event is global, proceed to the next step. If not, return 401 if event.tenantId !== user.tenantId.
+3. `EventQueryService` composes filters.
+4. DB read from `event`.
+5. Return paginated result.
 
 ### GET /events/:id
 
@@ -556,9 +548,10 @@ Response `200`:
 
 Internal flow:
 
-1. `EventQueryService` fetches event by ID under tenant context.
-2. If no visible row after RLS, return `404`.
-3. Aggregate participation count from `event_participation`.
+1. Get tenantId from jwt.
+2. If event is global, proceed to the next step. If not, return 401 if event.tenantId !== user.tenantId.
+3. `EventQueryService` fetches event by ID under tenant context.
+4. Aggregate participation count from `event_participation`.
 
 ### POST /events
 
@@ -583,13 +576,6 @@ Request body:
 }
 ```
 
-Validation:
-
-- `endDate >= startDate`
-- `scope=TENANT` implies current `tenantId` is attached
-- `scope=GLOBAL` allowed only for authorized roles (`schoolAdmin` or Sysadmin depending policy)
-- organizer must belong to caller tenant for tenant-scoped events
-
 Response `201`:
 
 ```json
@@ -612,7 +598,7 @@ Internal flow:
 1. `EventService` routes to `EventCommandService`.
 2. Select strategy by `type` (`WebinarStrategy`, `ConcertStrategy`, `CompetitionStrategy`).
 3. Strategy-level validation runs.
-4. Insert row into `event` with creator and organizer IDs.
+4. Insert row into `event` with organizer IDs and other input data.
 5. Return created event.
 
 ### PATCH /events/:id
@@ -634,16 +620,10 @@ Request body (partial):
 }
 ```
 
-Validation:
-
-- end date must remain `>=` start date
-- event scope/tenant invariants cannot be broken
-
 Internal flow:
 
-1. Resolve event under tenant context.
-2. Authorize organizer/admin.
-3. Apply patch and return updated event.
+1. Authorize organizer/admin (check if real organizer by user.id === event.organizerId)
+2. Apply patch and return updated event.
 
 ### POST /events/register
 
@@ -665,13 +645,6 @@ Request body:
 }
 ```
 
-Validation:
-
-- unique pair `(eventId, participantUserId)`
-- event exists and caller can access it
-- if event scope is `TENANT`, participant must belong to same tenant
-- if event type is `competition`, create companion row in `competition_participation`
-
 Response `201`:
 
 ```json
@@ -688,52 +661,20 @@ Response `201`:
 
 Internal flow:
 
-1. `EventCommandService` reads event.
-2. Enforce RBAC and tenant/global rules.
+1. Compare user.id === event.tenantId if event is tenant-scoped. Otherwise, proceed without this check.
+2. `EventCommandService` reads event.
 3. Insert into `event_participation`.
 4. If competition, insert into `competition_participation` with null grade/place.
-5. Return participation DTO.
-
-### GET /events/:id/participants
-
-Returns participants with competition fields when applicable.
-
-Auth and roles:
-
-- Required auth: yes
-- Allowed roles: `schoolAdmin`, `teacher`, `Sysadmin`
-
-Response `200`:
-
-```json
-{
-  "items": [
-    {
-      "id": "b76607e7-e5b1-49bc-8130-836b3d5d1ed7",
-      "participantUserId": "7777d9fb-8c37-4b12-b0b3-09f66dc34f7f",
-      "roleInEvent": "performer",
-      "attended": true,
-      "grade": 96.5,
-      "place": 1
-    }
-  ]
-}
-```
-
-Internal flow:
-
-1. Validate caller can view event.
-2. Query `event_participation` and left-join `competition_participation`.
-3. Return participant list.
+5. Return participation data.
 
 ### POST /events/:id/attendance
 
-Marks participant attendance.
+Marks participant attendance (called for webinars directly, for competitions and cocerts participation is marked when places and grades are given).
 
 Auth and roles:
 
 - Required auth: yes
-- Allowed roles: `schoolAdmin`, organizer, designated teacher
+- Allowed roles: `schoolAdmin`, organizer
 
 Request body:
 
@@ -747,106 +688,93 @@ Request body:
 
 Internal flow:
 
-1. Resolve participation row by event and user.
+1. Authorize user.
 2. Update `attended`, `attendanceMarkedAt`, `notes`.
-3. Return updated participation DTO.
+3. Return updated participation.
 
-### POST /events/upload-video
+### POST /events/request-video-upload
 
-Organizer uploads final event video link (webinar recording or concert full video).
+Step 1: request a one-time presigned upload URL for event video.
 
 Auth and roles:
 
 - Required auth: yes
-- Allowed roles: `schoolAdmin`, `teacher` (organizer only)
+- Allowed roles: `schoolAdmin` or `teacher` (organizer only)
 
 Request body:
 
 ```json
 {
   "eventId": "11c96f9b-0d8d-45f2-a26d-5f8e14666ec2",
-  "videoUrl": "https://cdn.example.com/videos/webinar-2026-04-20.mp4"
+  "fileName": "webinar-2026-04-20.mp4",
+  "contentType": "video/mp4",
+  "fileSizeBytes": 523001002
 }
 ```
-
-Validation:
-
-- event type must be `webinar` or `concert`
-- caller must be event organizer or school admin
-- valid URL
 
 Response `200`:
 
 ```json
 {
   "eventId": "11c96f9b-0d8d-45f2-a26d-5f8e14666ec2",
-  "videoUrl": "https://cdn.example.com/videos/webinar-2026-04-20.mp4",
+  "uploadUrl": "https://s3.eu-west-1.amazonaws.com/...signed...",
+  "fileKey": "events/11c96f9b-0d8d-45f2-a26d-5f8e14666ec2/webinar-2026-04-20.mp4",
+  "expiresInSeconds": 900
+}
+```
+
+Internal flow:
+
+1. Authorize organizer.
+2. Validate `contentType` and `fileSizeBytes` against upload policy.
+3. Backend requests S3 presigned PUT URL for a single upload.
+4. Return `uploadUrl` + `fileKey` (frontend uploads file directly to S3).
+
+### POST /events/complete-upload
+
+Step 2: confirm upload completion and persist event video reference.
+
+Auth and roles:
+
+- Required auth: yes
+- Allowed roles: `schoolAdmin` or `teacher` (organizer only)
+
+Request body:
+
+```json
+{
+  "eventId": "11c96f9b-0d8d-45f2-a26d-5f8e14666ec2",
+  "fileKey": "events/11c96f9b-0d8d-45f2-a26d-5f8e14666ec2/webinar-2026-04-20.mp4",
+  "videoUrl": "https://cdn.example.com/events/11c96f9b-0d8d-45f2-a26d-5f8e14666ec2/webinar-2026-04-20.mp4"
+}
+```
+
+Response `200`:
+
+```json
+{
+  "eventId": "11c96f9b-0d8d-45f2-a26d-5f8e14666ec2",
+  "videoUrl": "https://cdn.example.com/events/11c96f9b-0d8d-45f2-a26d-5f8e14666ec2/webinar-2026-04-20.mp4",
   "updatedAt": "2026-04-20T17:00:00Z"
 }
 ```
 
 Internal flow:
 
-1. Load event under tenant context.
-2. Validate type and caller rights.
-3. Update `event.videoUrl`.
-4. Return updated metadata.
-
-### POST /events/submit-video
-
-Teacher submits participant video for concert performance or competition.
-
-Auth and roles:
-
-- Required auth: yes
-- Allowed roles: `teacher`
-
-Request body:
-
-```json
-{
-  "eventId": "4f2d6ce7-8d42-4d7e-8f4a-4e953d3f66b5",
-  "participantUserId": "7777d9fb-8c37-4b12-b0b3-09f66dc34f7f",
-  "videoUrl": "https://cdn.example.com/videos/student-performance.mp4",
-  "comment": "regional stage submission"
-}
-```
-
-Validation:
-
-- event type must be `concert` or `competition`
-- participant must already be registered
-- caller must be assigned teacher for student or school admin
-
-Response `200`:
-
-```json
-{
-  "participationId": "b76607e7-e5b1-49bc-8130-836b3d5d1ed7",
-  "eventId": "4f2d6ce7-8d42-4d7e-8f4a-4e953d3f66b5",
-  "participantUserId": "7777d9fb-8c37-4b12-b0b3-09f66dc34f7f",
-  "submission": {
-    "videoUrl": "https://cdn.example.com/videos/student-performance.mp4",
-    "comment": "regional stage submission"
-  }
-}
-```
-
-Internal flow:
-
-1. Load event + participation + teacher-student assignment.
-2. Validate ownership and event type.
-3. Store submission in `event_participation.notes` as structured JSON text payload (video URL + comment).
-4. Return submission view model.
+1. Frontend uploads file directly to S3 using presigned `uploadUrl` from step 1.
+2. Frontend calls this endpoint to confirm upload completion.
+3. Backend verifies object existence and ownership.
+4. Update `event.videoUrl`.
+5. Return updated event video metadata.
 
 ### POST /events/assign-place
 
-Competition only. Assigns place to participant.
+Assigns place to participant.
 
 Auth and roles:
 
 - Required auth: yes
-- Allowed roles: `schoolAdmin`, `teacher` (jury/organizer roles by policy)
+- Allowed roles: `schoolAdmin` or `teacher` (jury/organizer roles)
 
 Request body:
 
@@ -858,12 +786,6 @@ Request body:
   "juryNotes": "Excellent interpretation and technique"
 }
 ```
-
-Validation:
-
-- event type must be `competition`
-- place positive integer
-- participant must be in competition participation set
 
 Response `200`:
 
@@ -878,8 +800,8 @@ Response `200`:
 
 Internal flow:
 
-1. Resolve event + participation by `(eventId, participantUserId)`.
-2. Ensure competition subtype row exists in `competition_participation`.
+1. Find event + participation by `(eventId, participantUserId)`.
+2. Check if event type is competition.
 3. Update `competition_participation.place` and `juryNotes`.
 4. Return current scoring state.
 
@@ -890,7 +812,7 @@ Competition only. Assigns numeric grade to participant performance.
 Auth and roles:
 
 - Required auth: yes
-- Allowed roles: `schoolAdmin`, `teacher` (jury/organizer roles by policy)
+- Allowed roles: `schoolAdmin` or `teacher` (jury/organizer roles)
 
 Request body:
 
@@ -925,438 +847,3 @@ Internal flow:
 2. Validate caller has grading rights.
 3. Update `competition_participation.grade` and `juryNotes`.
 4. Return updated competition scoring snapshot.
-
-## LESSON PLANS
-
-### GET /lesson-plans
-
-Lists lesson plans for tenant.
-
-Auth and roles:
-
-- Required auth: yes
-- Allowed roles: `schoolAdmin`, `teacher`
-
-Query parameters:
-
-- `teacherUserId` (optional)
-- `isTemplate` (optional)
-- `page`, `pageSize`
-
-Internal flow:
-
-1. Open tenant transaction context.
-2. Query `lesson_plan` with filters and pagination.
-3. Return plan list.
-
-### POST /lesson-plans
-
-Creates lesson plan or template.
-
-Auth and roles:
-
-- Required auth: yes
-- Allowed roles: `teacher`, `schoolAdmin`
-
-Request body:
-
-```json
-{
-  "teacherUserId": "9bdf0506-cb0f-4f54-860e-a6eb4f742fc2",
-  "isTemplate": false,
-  "title": "Weekly Piano Practice",
-  "content": {
-    "goals": ["scales", "sight reading"],
-    "durationMinutes": 45
-  }
-}
-```
-
-Validation:
-
-- `content` required JSON object
-- teacher can create only own plans unless school admin
-
-Response `201`:
-
-```json
-{
-  "id": "ed85d3f5-c56f-4b29-9456-9fa8653d4e6f",
-  "tenantId": "9c926e8a-2e4e-4490-98a0-725d32ba1628",
-  "teacherUserId": "9bdf0506-cb0f-4f54-860e-a6eb4f742fc2",
-  "isTemplate": false,
-  "title": "Weekly Piano Practice",
-  "content": {
-    "goals": ["scales", "sight reading"],
-    "durationMinutes": 45
-  }
-}
-```
-
-Internal flow:
-
-1. Authorize teacher/admin.
-2. Insert into `lesson_plan`.
-3. Return created DTO.
-
-### GET /lesson-plans/:id
-
-Returns one lesson plan.
-
-Auth and roles:
-
-- Required auth: yes
-- Allowed roles: `schoolAdmin`, plan owner teacher
-
-Internal flow:
-
-1. Resolve plan by ID in tenant context.
-2. Apply ownership rules.
-3. Return full plan.
-
-### PATCH /lesson-plans/:id
-
-Updates title/content/template flag.
-
-Auth and roles:
-
-- Required auth: yes
-- Allowed roles: `schoolAdmin`, plan owner teacher
-
-Internal flow:
-
-1. Resolve and authorize.
-2. Update mutable fields.
-3. Return updated plan.
-
-### POST /lesson-plans/:id/create-from-template
-
-Creates a new lesson plan from an existing template plan.
-
-Auth and roles:
-
-- Required auth: yes
-- Allowed roles: `teacher`, `schoolAdmin`
-
-Internal flow:
-
-1. Load source plan.
-2. Validate source plan has `isTemplate=true`.
-3. Copy `title/content` into a new row with `isTemplate=false` and caller/target teacher assignment.
-4. Insert new row and return created plan metadata.
-
-### POST /lesson-plans/:id/assignments
-
-Assigns plan to student by date.
-
-Auth and roles:
-
-- Required auth: yes
-- Allowed roles: `teacher`, `schoolAdmin`
-
-Request body:
-
-```json
-{
-  "studentUserId": "7777d9fb-8c37-4b12-b0b3-09f66dc34f7f",
-  "assignedDate": "2026-04-22",
-  "notes": "focus on articulation"
-}
-```
-
-Validation:
-
-- unique `(lessonPlanId, studentUserId, assignedDate)`
-- assignment must respect teacher-student mapping (or school admin override)
-
-Response `201`:
-
-```json
-{
-  "id": "69f67f65-f6f1-4f84-8a8a-3ff6e2e0e4b7",
-  "lessonPlanId": "ed85d3f5-c56f-4b29-9456-9fa8653d4e6f",
-  "studentUserId": "7777d9fb-8c37-4b12-b0b3-09f66dc34f7f",
-  "assignedDate": "2026-04-22",
-  "status": "planned",
-  "notes": "focus on articulation"
-}
-```
-
-Internal flow:
-
-1. Validate plan visibility and teacher-student mapping.
-2. Insert into `lesson_plan_assignment`.
-3. Return created assignment.
-
-### GET /lesson-plans/assignments
-
-Lists lesson plan assignments.
-
-Auth and roles:
-
-- Required auth: yes
-- Allowed roles: `schoolAdmin`, `teacher`, `student`
-
-Query parameters:
-
-- `studentUserId` (optional)
-- `teacherUserId` (optional)
-- `status` (optional)
-- `fromDate`, `toDate` (optional)
-
-Internal flow:
-
-1. Build caller-scope filter:
-   - admin: tenant-wide
-   - teacher: own students
-   - student: self only
-2. Query `lesson_plan_assignment` joined with plan metadata.
-3. Return paged list.
-
-### PATCH /lesson-plans/assignments/:id
-
-Updates assignment status and notes.
-
-Auth and roles:
-
-- Required auth: yes
-- Allowed roles: `schoolAdmin`, assigned teacher, student (status to completed only)
-
-Request body:
-
-```json
-{
-  "status": "completed",
-  "notes": "performed with good tempo"
-}
-```
-
-Validation:
-
-- status in `planned | completed | cancelled`
-
-Internal flow:
-
-1. Resolve assignment with tenant + visibility checks.
-2. Apply role-aware field restrictions.
-3. Update and return assignment.
-
-## REPORTS
-
-### POST /reports
-
-Generates report snapshot and stores it.
-
-Auth and roles:
-
-- Required auth: yes
-- Allowed roles: `schoolAdmin`, `teacher`
-
-Request body:
-
-```json
-{
-  "teacherUserId": "9bdf0506-cb0f-4f54-860e-a6eb4f742fc2",
-  "periodStart": "2026-01-01",
-  "periodEnd": "2026-05-31",
-  "reportType": "semester",
-  "filters": {
-    "includeEvents": true,
-    "includeLessons": true,
-    "eventTypes": ["webinar", "concert", "competition"]
-  }
-}
-```
-
-Validation:
-
-- `periodEnd >= periodStart`
-- `teacherUserId` optional for school admin, required for teacher self-report
-- `reportType` in: `annual | semester | term | random`
-
-Response `201`:
-
-```json
-{
-  "id": "af36e7bd-9633-484e-8eb6-5b064a9e4dff",
-  "tenantId": "9c926e8a-2e4e-4490-98a0-725d32ba1628",
-  "requestedByUserId": "9bdf0506-cb0f-4f54-860e-a6eb4f742fc2",
-  "teacherUserId": "9bdf0506-cb0f-4f54-860e-a6eb4f742fc2",
-  "periodStart": "2026-01-01",
-  "periodEnd": "2026-05-31",
-  "reportType": "semester",
-  "generatedAt": "2026-06-01T12:00:00Z",
-  "snapshotPayload": {
-    "summary": {
-      "eventsCount": 14,
-      "lessonsCompleted": 96,
-      "competitionAwards": 5
-    }
-  }
-}
-```
-
-Internal flow:
-
-1. `ReportService` chooses generator strategy by request filter (`EventReportGenerator`, `AcademicReportGenerator`, or mixed).
-2. Read source rows from `event_participation`, `competition_participation`, `lesson_plan_assignment` within tenant context.
-3. Compute aggregate metrics and narrative blocks.
-4. Persist immutable snapshot to `report.snapshotPayload`.
-5. Return saved report.
-
-### PATCH /reports/:id
-
-Edits a saved report snapshot.
-
-Auth and roles:
-
-- Required auth: yes
-- Allowed roles: `schoolAdmin`, `teacher` (owner only)
-
-Path params:
-
-- `id` UUID
-
-Request body:
-
-```json
-{
-  "snapshotPayload": {
-    "summary": {
-      "teacherComment": "Updated after final jury confirmations"
-    }
-  }
-}
-```
-
-Validation:
-
-- report exists in caller tenant
-- teachers can edit only reports they requested; school admin can edit any tenant report
-
-Response `200`:
-
-```json
-{
-  "id": "af36e7bd-9633-484e-8eb6-5b064a9e4dff",
-  "updated": true,
-  "snapshotPayload": {
-    "summary": {
-      "teacherComment": "Updated after final jury confirmations"
-    }
-  }
-}
-```
-
-Internal flow:
-
-1. Fetch report under tenant context (RLS).
-2. Check ownership/role rule.
-3. Merge or replace `snapshotPayload` according to patch semantics.
-4. Save and return updated payload.
-
-### GET /reports
-
-Returns reports visible to caller. Primary use: school admin reporting dashboard.
-
-Auth and roles:
-
-- Required auth: yes
-- Allowed roles: `schoolAdmin`, `teacher`
-
-Query parameters:
-
-- `teacherUserId` (optional, school admin only)
-- `reportType` (optional)
-- `periodStartFrom` (optional)
-- `periodEndTo` (optional)
-- `page`, `pageSize`
-
-Response `200`:
-
-```json
-{
-  "items": [
-    {
-      "id": "af36e7bd-9633-484e-8eb6-5b064a9e4dff",
-      "teacherUserId": "9bdf0506-cb0f-4f54-860e-a6eb4f742fc2",
-      "reportType": "semester",
-      "periodStart": "2026-01-01",
-      "periodEnd": "2026-05-31",
-      "generatedAt": "2026-06-01T12:00:00Z"
-    }
-  ],
-  "page": 1,
-  "pageSize": 20,
-  "total": 1
-}
-```
-
-Internal flow:
-
-1. Resolve tenant context from JWT.
-2. `ReportService` applies caller-scope filters:
-   - school admin: tenant-wide
-   - teacher: own reports only
-3. Query `report` table with pagination.
-4. Return compact report list.
-
-### GET /reports/:id
-
-Returns full report payload (`snapshotPayload`) for one report.
-
-Auth and roles:
-
-- Required auth: yes
-- Allowed roles: `schoolAdmin`, report owner teacher
-
-Response `200`:
-
-```json
-{
-  "id": "af36e7bd-9633-484e-8eb6-5b064a9e4dff",
-  "tenantId": "9c926e8a-2e4e-4490-98a0-725d32ba1628",
-  "teacherUserId": "9bdf0506-cb0f-4f54-860e-a6eb4f742fc2",
-  "periodStart": "2026-01-01",
-  "periodEnd": "2026-05-31",
-  "reportType": "semester",
-  "snapshotPayload": {
-    "summary": {
-      "eventsCount": 14,
-      "lessonsCompleted": 96
-    }
-  },
-  "generatedAt": "2026-06-01T12:00:00Z"
-}
-```
-
-Internal flow:
-
-1. Resolve report by ID inside tenant RLS context.
-2. Enforce owner/admin visibility.
-3. Return report document.
-
-## Notes On Endpoint Normalization
-
-- Original starter listed `GET /events` twice. In this document second read endpoint is normalized to `GET /events/:id`.
-- Endpoint names remain aligned with the provided starter for implementation traceability.
-
-## Table To Endpoint Coverage
-
-This section shows where each ERD table is created/read/updated by the API.
-
-- `tenant`: `POST /tenants`, `GET /tenants`, `GET /tenants/:id`, `PATCH /tenants/:id/status`
-- `user`: `POST /users`, `POST /tenants` (creates initial admin), `GET /users`, `GET /users/:id`, `PATCH /users/:id`, `GET /auth/me`
-- `teacher_details`: `PUT /teachers/:userId/profile`
-- `student_details`: `PUT /students/:userId/profile`
-- `membership`: `POST /memberships`, `PATCH /memberships/:id/status`, `GET /auth/me`, tenant-scoped user listing
-- `membership_role`: `POST /memberships/:id/roles`, `DELETE /memberships/:id/roles/:role`, role expansion in `GET /users` and `GET /auth/me`
-- `teacher_student_assignment`: `POST /teacher-student-assignments`, `PATCH /teacher-student-assignments/:id/status`, `GET /teacher-student-assignments`
-- `event`: `POST /events`, `PATCH /events/:id`, `GET /events`, `GET /events/:id`, `POST /events/upload-video`
-- `event_participation`: `POST /events/register`, `GET /events/:id/participants`, `POST /events/:id/attendance`, `POST /events/submit-video`
-- `competition_participation`: `POST /events/register` (create for competition), `POST /events/grade-performance`, `POST /events/assign-place`, `GET /events/:id/participants`
-- `magic_link`: `POST /auth/request-magic-link`, `POST /auth/verify-magic-link`, `POST /tenants` (initial admin onboarding link)
-- `award`: not exposed as API endpoint in current scope (table reserved for future certificate workflows)
-- `lesson_plan`: `POST /lesson-plans`, `GET /lesson-plans`, `GET /lesson-plans/:id`, `PATCH /lesson-plans/:id`, `POST /lesson-plans/:id/create-from-template`
-- `lesson_plan_assignment`: `POST /lesson-plans/:id/assignments`, `GET /lesson-plans/assignments`, `PATCH /lesson-plans/assignments/:id`
-- `report`: `POST /reports`, `GET /reports`, `GET /reports/:id`, `PATCH /reports/:id`
