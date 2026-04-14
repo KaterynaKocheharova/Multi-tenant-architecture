@@ -64,6 +64,75 @@
 - `GET /reports/:id`
 - `PATCH /reports/:id`
 
+## Global Endpoint Schema
+
+```mermaid
+flowchart TB
+  subgraph TenantManagement
+    TM1[POST /tenants]
+    TM2[GET /tenants]
+    TM3[GET /tenants/:id]
+    TM4[PATCH /tenants/:id/status]
+  end
+
+  subgraph Auth
+    A1[POST /auth/login]
+    A2[POST /auth/verify-magic-link]
+    A3[POST /auth/refresh]
+    A4[POST /auth/logout]
+    A5[GET /auth/me]
+    A6[POST /auth/change-password]
+  end
+
+  subgraph IdentityAndMembership
+    I1[GET /users/all]
+    I2[GET /users]
+    I3[POST /users]
+  end
+
+  subgraph Teacher
+    T1[GET /teachers/:userId]
+    T2[PATCH /teachers/:userId]
+  end
+
+  subgraph Student
+    S1[POST /students]
+    S2[GET /students/:userId]
+    S3[PATCH /students/:userId]
+  end
+
+  subgraph Events
+    E1[GET /events]
+    E2[GET /events/:id]
+    E3[POST /events]
+    E4[POST /events/add-jury-member]
+    E5[PATCH /events/:id]
+    E6[POST /events/register]
+    E7[GET /events/:id/participants]
+    E8[POST /events/:id/attendance]
+    E9[POST /events/request-video-upload]
+    E10[POST /events/complete-upload]
+    E11[POST /events/assign-place]
+    E12[POST /events/grade-performance]
+  end
+
+  subgraph LessonPlans
+    L1[GET /lesson-plans]
+    L2[POST /lesson-plans]
+    L3[GET /lesson-plans/:id]
+    L4[PATCH /lesson-plans/:id]
+    L5[POST /lesson-plans/:id/create-from-template]
+    L6[POST /lesson-plans/:id/assignments]
+  end
+
+  subgraph Reports
+    R1[POST /reports]
+    R2[GET /reports]
+    R3[GET /reports/:id]
+    R4[PATCH /reports/:id]
+  end
+```
+
 ## 8 ENDPOINTS BREAKDOWNS
 
 ## TENANT MANAGEMENT
@@ -114,6 +183,26 @@ Internal flow:
 9. User clicks magic link in the email and gets redirected to their page.
 10. They can change their password right now.
 
+Sequence diagram:
+
+```mermaid
+sequenceDiagram
+  participant SA as Sysadmin
+  participant API as Backend API
+  participant DB as PostgreSQL
+  participant Mail as Email Service
+
+  SA->>API: POST /tenants
+  API->>DB: Validate caller role (Sysadmin)
+  API->>DB: INSERT tenant
+  API->>API: Hash initialAdmin.password
+  API->>DB: INSERT user(passwordHash)
+  API->>DB: INSERT membership
+  API->>DB: INSERT membership_role(schoolAdmin)
+  API->>Mail: Send magic link onboarding email
+  API-->>SA: 201 Created (tenant metadata)
+```
+
 ## IDENTITY AND MEMBERSHIP
 
 ### 2. POST /users
@@ -158,6 +247,29 @@ Internal flow:
 4. Send magic link to a new user.
 5. Return created identity.
 6. The new user clicks the magic link. They can now see their profile and can change their password.
+
+Sequence diagram:
+
+```mermaid
+sequenceDiagram
+  participant Admin as School Admin
+  participant API as Backend API
+  participant DB as PostgreSQL
+  participant Mail as Email Service
+
+  Admin->>API: POST /users
+  API->>DB: Check unique email
+  alt Email exists
+    API-->>Admin: 409 Conflict
+  else Email available
+    API->>API: Hash password
+    API->>DB: INSERT user
+    API->>DB: INSERT membership
+    API->>DB: INSERT membership_role
+    API->>Mail: Send magic link
+    API-->>Admin: 201 Created
+  end
+```
 
 ## EVENTS
 
@@ -206,6 +318,21 @@ Internal flow:
 1. Insert row into `event` with organizer IDs and other input data.
 2. Return created event.
 
+Sequence diagram:
+
+```mermaid
+sequenceDiagram
+  participant User as Teacher or School Admin
+  participant API as Backend API
+  participant DB as PostgreSQL
+
+  User->>API: POST /events
+  API->>DB: Authorize role + tenant scope
+  API->>DB: INSERT event
+  DB-->>API: event row
+  API-->>User: 201 Created (event)
+```
+
 ### 4. POST /events/register
 
 Registers participant in event.
@@ -247,6 +374,23 @@ Internal flow:
 3. If competition, insert into `competition_participation` with null grade/place.
 4. Return participation data.
 
+Sequence diagram:
+
+```mermaid
+sequenceDiagram
+  participant User as Teacher or School Admin
+  participant API as Backend API
+  participant DB as PostgreSQL
+
+  User->>API: POST /events/register
+  API->>DB: Load event and validate tenant access
+  API->>DB: INSERT event_participation
+  alt Event type is competition
+    API->>DB: INSERT competition_participation
+  end
+  API-->>User: 201 Created (participation)
+```
+
 ### 5. POST /events/:id/attendance
 
 Marks participant attendance (called for webinars directly, for competitions and cocerts participation is marked when videos uploaded).
@@ -271,6 +415,20 @@ Internal flow:
 1. Authorize user (check the role)
 2. Update `attended`, `attendanceMarkedAt`, `notes`.
 3. Return updated participation.
+
+Sequence diagram:
+
+```mermaid
+sequenceDiagram
+  participant Jury as Jury or Organizer
+  participant API as Backend API
+  participant DB as PostgreSQL
+
+  Jury->>API: POST /events/:id/attendance
+  API->>DB: Verify caller role for event
+  API->>DB: UPDATE event_participation(attended, attendanceMarkedAt, notes)
+  API-->>Jury: 200 OK (updated participation)
+```
 
 ### 6. POST /events/request-video-upload
 
@@ -314,6 +472,23 @@ Internal flow:
 6. Return uploadUrl and fileKey to client
 7. Client uploads file directly to S3
 
+Sequence diagram:
+
+```mermaid
+sequenceDiagram
+  participant FE as Frontend
+  participant API as Backend API
+  participant S3 as Amazon S3
+
+  FE->>API: POST /events/request-video-upload
+  API->>API: Validate role + file constraints
+  API->>S3: Create presigned PUT URL
+  S3-->>API: uploadUrl + fileKey
+  API-->>FE: 200 OK (uploadUrl, fileKey)
+  FE->>S3: PUT video file via uploadUrl
+  S3-->>FE: 200 Upload complete
+```
+
 ### 7. POST /events/complete-upload
 
 Step 2: confirm upload and persist event video reference.
@@ -350,6 +525,23 @@ Internal flow:
 3. Backend verifies object existence and ownership.
 4. Update `event.videoUrl`.
 5. Return updated event video metadata.
+
+Sequence diagram:
+
+```mermaid
+sequenceDiagram
+  participant FE as Frontend
+  participant API as Backend API
+  participant S3 as Amazon S3
+  participant DB as PostgreSQL
+
+  FE->>API: POST /events/complete-upload
+  API->>S3: HEAD object by fileKey
+  S3-->>API: Object exists
+  API->>DB: UPDATE event.videoUrl
+  DB-->>API: updated event
+  API-->>FE: 200 OK (eventId, videoUrl, updatedAt)
+```
 
 ### 8. POST /events/assign-place
 
@@ -388,3 +580,18 @@ Internal flow:
 2. Check if event type is competition.
 3. Update `competition_participation.place` and `juryNotes`.
 4. Return current scoring state.
+
+Sequence diagram:
+
+```mermaid
+sequenceDiagram
+  participant Jury as Jury Member
+  participant API as Backend API
+  participant DB as PostgreSQL
+
+  Jury->>API: POST /events/assign-place
+  API->>DB: Load event + participation
+  API->>DB: Validate event.type = competition
+  API->>DB: UPDATE competition_participation(place, juryNotes)
+  API-->>Jury: 200 OK (current scoring state)
+```
