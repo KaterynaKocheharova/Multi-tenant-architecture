@@ -390,11 +390,9 @@ Internal flow:
 3. Resolve user and current tenant membership.
 4. Return profile data.
 
-<!-- !!!!!!!!!!!!!!!!!!!! -->
-
 ## IDENTITY AND MEMBERSHIP
 
-### GET /users
+### GET /users/:tenantId
 
 Lists users visible in current tenant.
 
@@ -432,13 +430,7 @@ Response `200`:
 }
 ```
 
-Internal flow:
-
-1. Open tenant transaction context.
-2. Join `user`, `membership`, `membership_role` for caller tenant.
-3. Apply filters and pagination.
-
-### POST /users
+### POST /users/:tenantId
 
 Creates a platform user identity.
 
@@ -453,14 +445,11 @@ Request body:
 {
   "fullName": "Maksym Kovalenko",
   "email": "maksym.kovalenko@school-a.edu.ua",
-  "globalRole": "Member"
+  "globalRole": "Member",
+  "membershipRole": "Teacher",
+  "password": "Secret2000"
 }
 ```
-
-Validation:
-
-- unique email (`citext`)
-- `globalRole` in `Sysadmin | Member`
 
 Response `201`:
 
@@ -470,292 +459,19 @@ Response `201`:
   "fullName": "Maksym Kovalenko",
   "email": "maksym.kovalenko@school-a.edu.ua",
   "globalRole": "Member",
-  "isActive": true
+  "membershipRole": "Teacher",
+  "isActive": "true"
 }
 ```
 
 Internal flow:
 
-1. Validate uniqueness by email.
-2. Insert row in `user`.
-3. Return created identity.
-
-### GET /users/:id
-
-Returns user profile and tenant membership projection.
-
-Auth and roles:
-
-- Required auth: yes
-- Allowed roles: `schoolAdmin`, `teacher` (self or assigned students), `student` (self)
-
-Internal flow:
-
-1. Open tenant context.
-2. Resolve user and role-dependent visibility checks.
-3. Return profile + roles + details (`teacher_details` or `student_details` when present).
-
-### PATCH /users/:id
-
-Updates user identity fields.
-
-Auth and roles:
-
-- Required auth: yes
-- Allowed roles: `schoolAdmin` or self for limited fields
-
-Request body:
-
-```json
-{
-  "fullName": "Maksym K."
-}
-```
-
-Internal flow:
-
-1. Validate field-level permissions.
-2. Update `user` row.
-3. Return updated representation.
-
-### POST /memberships
-
-Links existing user to tenant.
-
-Auth and roles:
-
-- Required auth: yes
-- Allowed roles: `schoolAdmin`, `Sysadmin`
-
-Request body:
-
-```json
-{
-  "userId": "f8f2aef3-8c1d-453f-ab2a-fda1faa8e072",
-  "tenantId": "9c926e8a-2e4e-4490-98a0-725d32ba1628",
-  "roles": ["teacher"]
-}
-```
-
-Validation:
-
-- user can have only one membership (current model constraint)
-- tenant exists and active
-- role list non-empty
-
-Response `201`:
-
-```json
-{
-  "membershipId": "5006a7a7-970d-4daf-b7ea-366737276637",
-  "userId": "f8f2aef3-8c1d-453f-ab2a-fda1faa8e072",
-  "tenantId": "9c926e8a-2e4e-4490-98a0-725d32ba1628",
-  "status": "active",
-  "roles": ["teacher"]
-}
-```
-
-Internal flow:
-
-1. Create `membership` row.
-2. Insert one row per role into `membership_role`.
-3. Commit atomically.
-
-### PATCH /memberships/:id/status
-
-Suspends or reactivates membership.
-
-Auth and roles:
-
-- Required auth: yes
-- Allowed roles: `schoolAdmin`, `Sysadmin`
-
-Request body:
-
-```json
-{
-  "status": "suspended"
-}
-```
-
-Internal flow:
-
-1. Resolve membership in tenant scope.
-2. Update `membership.status`.
-3. Return status DTO.
-
-### POST /memberships/:id/roles
-
-Adds role to membership.
-
-Auth and roles:
-
-- Required auth: yes
-- Allowed roles: `schoolAdmin`, `Sysadmin`
-
-Request body:
-
-```json
-{
-  "role": "student"
-}
-```
-
-Validation:
-
-- unique `(membershipId, role)`
-
-Internal flow:
-
-1. Insert into `membership_role`.
-2. Return updated role list.
-
-### DELETE /memberships/:id/roles/:role
-
-Removes role from membership.
-
-Auth and roles:
-
-- Required auth: yes
-- Allowed roles: `schoolAdmin`, `Sysadmin`
-
-Validation:
-
-- cannot remove the last role from active membership
-
-Internal flow:
-
-1. Delete role row.
-2. Enforce at least one remaining role.
-3. Return updated role list.
-
-## TEACHER AND STUDENT PROFILES
-
-### PUT /teachers/:userId/profile
-
-Creates or updates teacher details.
-
-Auth and roles:
-
-- Required auth: yes
-- Allowed roles: `schoolAdmin`, self (teacher)
-
-Request body:
-
-```json
-{
-  "musicalInstrument": "Piano"
-}
-```
-
-Internal flow:
-
-1. Validate that user has `teacher` membership role.
-2. Upsert into `teacher_details`.
-3. Return profile DTO.
-
-### PUT /students/:userId/profile
-
-Creates or updates student details.
-
-Auth and roles:
-
-- Required auth: yes
-- Allowed roles: `schoolAdmin`, assigned teacher, self (student, limited fields)
-
-Request body:
-
-```json
-{
-  "musicalInstrument": "Violin",
-  "classNumber": "6-A"
-}
-```
-
-Internal flow:
-
-1. Validate user has `student` role.
-2. Authorize caller by role or assignment.
-3. Upsert into `student_details`.
-
-### POST /teacher-student-assignments
-
-Assigns teacher to student in one tenant.
-
-Auth and roles:
-
-- Required auth: yes
-- Allowed roles: `schoolAdmin`
-
-Request body:
-
-```json
-{
-  "teacherUserId": "9bdf0506-cb0f-4f54-860e-a6eb4f742fc2",
-  "studentUserId": "7777d9fb-8c37-4b12-b0b3-09f66dc34f7f"
-}
-```
-
-Validation:
-
-- unique `(tenantId, teacherUserId, studentUserId)`
-- teacher and student roles must match expected role types
-
-Response `201`:
-
-```json
-{
-  "id": "67f57c55-a35f-4209-b24f-ddbf1fb5fdbd",
-  "tenantId": "9c926e8a-2e4e-4490-98a0-725d32ba1628",
-  "teacherUserId": "9bdf0506-cb0f-4f54-860e-a6eb4f742fc2",
-  "studentUserId": "7777d9fb-8c37-4b12-b0b3-09f66dc34f7f",
-  "status": "active"
-}
-```
-
-Internal flow:
-
-1. Resolve both users in same tenant.
-2. Validate roles and uniqueness.
-3. Insert into `teacher_student_assignment`.
-
-### PATCH /teacher-student-assignments/:id/status
-
-Activates/inactivates teacher-student mapping.
-
-Auth and roles:
-
-- Required auth: yes
-- Allowed roles: `schoolAdmin`
-
-Request body:
-
-```json
-{
-  "status": "inactive"
-}
-```
-
-Internal flow:
-
-1. Resolve assignment by ID with tenant filter.
-2. Update status.
-3. Return updated assignment DTO.
-
-### GET /teacher-student-assignments
-
-Returns assignment map for teacher dashboards and admin views.
-
-Auth and roles:
-
-- Required auth: yes
-- Allowed roles: `schoolAdmin`, `teacher`
-
-Internal flow:
-
-1. `schoolAdmin`: list all assignments in tenant.
-2. `teacher`: list assignments where `teacherUserId = caller.userId`.
-3. Return list.
+1. Validate uniqueness by email: if email exists, return "Conflict".
+2. Create user + membership + membership role.
+3. Send onboarding link to the website. User will be redirected to login and fill in their initial credentials. On the first login, they will also be able to change their password.
+4. Return created identity.
+
+<!-- !!!!!!!!!!!!!!1 -->
 
 ## EVENTS
 
