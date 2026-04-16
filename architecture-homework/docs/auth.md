@@ -1,23 +1,284 @@
-## AUTH
+# 🔐 Аутентифікація
 
-Shared token handling:
+## Флоу
 
-- Browser clients receive both `access_token` and `refresh_token` via `Set-Cookie` headers.
-- `access_token`: short-lived JWT, `HttpOnly`, `Secure`, `SameSite=Lax`, `Path=/`.
-- `refresh_token`: long-lived token, `HttpOnly`, `Secure`, `SameSite=Strict`, `Path=/auth`.
-- Protected endpoints may also accept `Authorization: Bearer <accessToken>` for non-browser clients.
-- Access JWTs are normally validated by signature and expiry; if immediate logout or forced revocation is required, server also checks token `jti` against a revoked-token denylist.
-- Refresh tokens are stored server-side only as hashed values and are rotated on refresh.
-- Magic-link tokens are stored server-side only as hashed values in the `magic_link` table.
+1. Користувач проходить автентифікацію через magic link.
+2. Сервер видає:
+   - `access_token` (короткоживучий JWT)
+   - `refresh_token` (довгоживучий токен сесії)
+3. Токени передаються:
+   - `access_token` => через `Authorization` header (Bearer token)
+   - `refresh_token` => через `Set-Cookie` (HttpOnly cookie)
 
-Additional safety measures:
+4. Клієнт:
+   - зберігає `access_token` у памʼяті (in-memory)
+   - не має доступу до `refresh_token` (HttpOnly cookie)
 
-- short access-token TTL
-- refresh-token rotation on every refresh
-- revoke all refresh sessions on password change or admin suspension
-- CSRF protection for cookie-based browser flows
-- rate limiting for `/auth/login`, `/auth/request-magic-link`, and `/auth/verify-magic-link`
-- never log raw access tokens, refresh tokens, or magic-link tokens
+5. При кожному API запиті:
+
+## Валідація запитів через мідлвару
+
+1. Middleware перевіряє `access_token`:
+
+- перевірка підпису JWT
+- перевірка терміну дії
+
+2. Якщо токен валідний:
+
+- додається `user` до `request`
+- запит продовжується
+
+<!-- !!!!!!!!!!!!!!!!!!!!!!1 -->
+
+## 🔄 Флоу рефрешу (оновлення access_token)
+
+1. Якщо `access_token` протермінований або API повертає `401 Unauthorized`:
+
+- клієнт викликає:
+  ```
+  POST /auth/refresh
+  ```
+
+2. Браузер автоматично додає `refresh_token` cookie (лише для `/auth/refresh`).
+
+3. Сервер:
+
+- дістає refresh token з cookie
+- хешує його і шукає в базі
+- перевіряє:
+  - чи токен існує
+  - чи активна сесія
+  - чи не відкликаний токен
+- якщо все валідно:
+  - генерує новий `access_token`
+  - генерує новий `refresh_token` (**rotation**)
+  - інвалідовує старий refresh token
+
+4. Відповідь сервера:
+
+- `access_token` → JSON response
+- `refresh_token` → новий `Set-Cookie`
+
+5. Клієнт:
+
+- оновлює `access_token` у памʼяті
+- повторює початковий запит
+
+---
+
+## 🚪 Logout
+
+1. Клієнт викликає `/auth/logout`
+2. Сервер:
+
+- очищає cookie з `refresh_token`
+- інвалідовує сесію в базі даних
+- (опціонально) додає `jti` access token у denylist
+
+---
+
+## ✉️ Magic Link
+
+- Токени magic link:
+- зберігаються тільки як **хеші**
+- зберігаються у таблиці `magic_link`
+- ніколи не зберігаються у відкритому вигляді
+
+---
+
+## 🌐 Робота клієнта (React SPA)
+
+- `access_token`:
+- зберігається в памʼяті (in-memory)
+- додається вручну в `Authorization` header
+
+- `refresh_token`:
+- недоступний JavaScript
+- автоматично надсилається браузером тільки на `/auth/refresh`
+
+---
+
+## 🔒 Додаткові заходи безпеки
+
+- короткий TTL для `access_token`
+- refresh token rotation
+- інвалідація сесій при:
+- зміні пароля
+- блокуванні акаунта
+- CSRF-захист для `/auth/refresh`
+- rate limiting для auth endpointів:
+- login
+- magic link request
+- magic link verify
+- заборона логування токенів:
+- access_token
+- refresh_token
+- magic link tokens
+
+---
+
+## 🤔 Чому це безпечно
+
+- **Короткий access token**
+  → мінімізує шкоду при компрометації
+
+- **In-memory storage**
+  → зменшує ризик XSS-персистентності
+
+- **HttpOnly refresh cookie**
+  → недоступний для JavaScript
+
+- **Розділення токенів**
+  → компрометація одного не ламає систему
+
+- **Rotation refresh token**
+  → викрадений токен швидко стає недійсним
+
+- **Хешування в БД**
+  → витік бази не розкриває токени
+
+- **CSRF захист**
+  → захищає refresh endpoint
+
+- **Denylist (`jti`)**
+  → дозволяє миттєве відкликання сесій
+
+### Налаштування cookie:
+
+- `HttpOnly`
+- `Secure`
+- `SameSite=Strict`
+- `Path=/auth`
+
+### На сервері:
+
+- зберігається **лише хеш токена**
+- поля в БД:
+  - `issuedAt`
+  - `name` (ідентифікатор сесії / пристрою)
+
+---
+
+## 🔄 Оновлення токенів (Refresh Flow)
+
+1. Клієнт викликає `/auth/refresh`
+2. Браузер автоматично додає `refresh_token` cookie
+3. Сервер:
+   - перевіряє хеш токена в БД
+   - перевіряє валідність сесії
+   - якщо все ок:
+     - видає новий `access_token`
+     - видає новий `refresh_token`
+     - інвалідовує старий refresh token (**rotation**)
+4. Відповідь:
+   - `access_token` → у JSON
+   - `refresh_token` → через cookie
+
+---
+
+## 🚪 Вихід із системи (Logout)
+
+1. Клієнт викликає `/auth/logout`
+2. Сервер:
+   - очищає cookie з refresh token
+   - інвалідовує токен у базі даних (за `name` або session id)
+
+---
+
+## 🛡️ Middleware
+
+### Middleware для Access Token
+
+- Читає токен з:
+
+Authorization: Bearer <access_token>
+
+- Перевіряє:
+  - підпис JWT
+  - термін дії
+
+- Опціонально:
+  - перевірка `jti` у denylist (для миттєвого відкликання)
+
+---
+
+### Middleware для Refresh Token
+
+- Використовується тільки на `/auth/refresh`
+- Перевіряє:
+  - наявність cookie
+  - хеш у базі даних
+  - статус сесії
+
+---
+
+## 🌐 Використання на клієнті (React SPA)
+
+### Access Token
+
+- зберігається в памʼяті (не localStorage)
+- додається вручну до API запитів
+
+### Refresh Token
+
+- недоступний у JavaScript
+- автоматично надсилається браузером через cookie
+
+---
+
+## ✉️ Magic Link
+
+- токени magic link:
+  - зберігаються **лише як хеші**
+  - знаходяться в таблиці `magic_link`
+- ніколи не зберігаються у відкритому вигляді
+
+---
+
+## 🔒 Додаткові заходи безпеки
+
+- короткий час життя `access_token`
+- rotation refresh token при кожному оновленні
+- інвалідація всіх сесій при:
+  - зміні пароля
+  - блокуванні акаунта
+- CSRF-захист для `/auth/refresh`
+- rate limiting для:
+  - `/auth/login`
+  - `/auth/request-magic-link`
+  - `/auth/verify-magic-link`
+- заборона логування токенів:
+  - access token
+  - refresh token
+  - magic link токени
+
+---
+
+## 🤔 Чому це безпечно
+
+- **Короткий access token**
+  → мінімізує шкоду при викраденні
+
+- **Відсутність localStorage**
+  → зменшує ризик XSS-атак
+
+- **HttpOnly refresh cookie**
+  → недоступний для JavaScript
+
+- **Розділення токенів**
+  → компрометація одного не ламає всю систему
+
+- **Rotation refresh token**
+  → викрадений токен швидко стає недійсним
+
+- **Хешування в базі**
+  → витік БД не дає можливості використати токени
+
+- **CSRF-захист**
+  → захищає refresh endpoint
+
+- **Denylist (`jti`)**
+  → дозволяє миттєво завершити сесію
 
 ### POST /auth/login
 
@@ -176,3 +437,5 @@ Internal flow:
 2. Decode JWT claims - userId and tenantId.
 3. Resolve user and current tenant membership.
 4. Return profile data.
+
+<!-- додати обмеження на кожен ендпоїнт по тенант айді +  додаткові + вирішити де їх застосувати -->
