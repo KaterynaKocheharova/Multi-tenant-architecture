@@ -133,7 +133,6 @@ router.patch(
 ### ABAC перевірки
 
 - `isSameTenant(ctx)` - перевірка tenant межі
-- `isSelf(ctx)` - користувач працює зі своїм профілем
 - `isOwner(ctx)` - користувач є власником ресурсу
 - `isAssignedTeacher(ctx)` - teacher пов'язаний зі student
 - `isEventOrganizer(ctx)` - користувач організатор івенту
@@ -142,49 +141,32 @@ router.patch(
 
 RLS у БД залишається другим рівнем захисту але не замінює middleware-перевірки на API-рівні, адже не має сенсу виконувати логіку до запиту у базу даних, якщо вона його відхилить.
 
-<!-- !!!!!!!!!!!1 -->
-
-### ABAC деталі по ендпоїнтам
+### ABAC приклади
 
 - Tenant Management:
   - `GET /tenants/:id`: `isSelf`/scope check для `SCHOOL_ADMIN`, або лише `SYSADMIN` без ABAC
 - Identity & Users:
   - `GET /users`: `isSameTenant`
-  - `POST /users`: `isSameTenant` для створюваного користувача
 - Teachers:
-  - `GET /teachers/:userId`: `isSelf` або `isSameTenant`
-  - `PATCH /teachers/:userId`: `isSelf` або `isSameTenant`
+  - `GET /teachers/:userId`: `isSameTenant`
+  - `PATCH /teachers/:userId`: `isSameTenant`
 - Students:
-  - `POST /students`: `isSameTenant` + teacher ownership для створеного зв'язку
   - `GET /students/:userId`: `isAssignedTeacher` або `isSameTenant` (для `SCHOOL_ADMIN`)
-  - `PATCH /students/:userId`: `isAssignedTeacher` або `isSameTenant` (для `SCHOOL_ADMIN`)
+  - `PATCH /students/:userId`: `isAssignedTeacher`
 - Events:
   - `GET /events`: `canViewGlobalOrTenantEvent`
   - `GET /events/:id`: `canViewGlobalOrTenantEvent`
-  - `POST /events`: `isSameTenant` (або explicit global policy)
   - `PATCH /events/:id`: `isEventOrganizer`
-  - `POST /events/add-jury-member`: `isEventOrganizer` + `isSameTenant` для додаваємого jury
+  - `POST /events/add-jury-member`: `isEventOrganizer`
   - `POST /events/register`: `isAssignedTeacher` для student + `canViewGlobalOrTenantEvent`
-  - `GET /events/:id/participants`: `isEventOrganizer` або `isEventJury` або (`SCHOOL_ADMIN` + `isSameTenant`)
+  - `GET /events/:id/participants`: `isEventOrganizer` або `isEventJury`
   - `POST /events/:id/attendance`: `isEventOrganizer`
-  - `POST /events/request-video-upload`: `isEventOrganizer` або (`TEACHER` + relation to participant)
-  - `POST /events/complete-upload`: `isEventOrganizer` або (`TEACHER` + relation to participant)
-  - `POST /events/assign-place`: `isEventJury`
-  - `POST /events/grade-performance`: `isEventJury`
+  - `POST /events/:id/assign-place`: `isEventJury`
+  - `POST /events/:id/grade-performance`: `isEventJury`
 - Lesson Plans:
-  - всі lesson-plans ендпоїнти: `isOwner` + `isSameTenant`
-  - `POST /lesson-plans/:id/assignments`: `isAssignedTeacher` + `isSameTenant`
+  - `POST /lesson-plans/:id/assignments`: `isAssignedTeacher`
 - Reports:
-  - `POST /reports`: `isOwner` + `isSameTenant`
-  - `GET /reports`: `isOwner` (для `TEACHER`) або `isSameTenant` (для `SCHOOL_ADMIN`)
+  - `POST /reports`: `isOwner`
+  - `GET /reports`: `isOwner` або `isSameTenant` (для `SCHOOL_ADMIN`)
   - `GET /reports/:id`: `isOwner` (для `TEACHER`) або `isSameTenant` (для `SCHOOL_ADMIN`)
-  - `PATCH /reports/:id`: `isSameTenant` (для `SCHOOL_ADMIN`)
-
-### Чи ок POST з dynamic param
-
-Так, `POST` з dynamic path param (наприклад, `POST /events/:id/attendance`) є нормальним REST-підходом для action над конкретним ресурсом.
-
-- Обирай `/:id/...`, коли дія однозначно належить конкретному ресурсу.
-- Обирай endpoint без `:id` (наприклад, `POST /events/register`), коли `eventId` передається в body і це частина вашого поточного контракту.
-
-Головне - консистентність у всьому API. Зараз у документі шляхи вирівняні під `api-design.md`.
+  - `PATCH /reports/:id`: `isOwner` (для `TEACHER`)
