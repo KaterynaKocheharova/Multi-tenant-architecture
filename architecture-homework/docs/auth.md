@@ -58,7 +58,7 @@
 
 POST /auth/refresh
 
-````
+```
 
 2. Браузер автоматично додає `refresh_token` cookie.
 
@@ -98,5 +98,4 @@ POST /auth/refresh
 revoked_tokens
 - jti: string
 - revokedAt: Date
-
-<!-- додати обмеження на кожен ендпоїнт по тенант айді +  додаткові + вирішити де їх застосувати -->
+```

@@ -1,6 +1,6 @@
-# 🧩 RBAC
+# RBAC
 
-## 📌 Roles
+## Roles
 
 - `SYSADMIN`
 - `SCHOOL_ADMIN`
@@ -8,16 +8,16 @@
 - `STUDENT`
 - `JURY`
 
-## 🔐 Tenant Management
+## Tenant Management
 
-| Endpoint                    | Access                                                 |
-| --------------------------- | ------------------------------------------------------ |
-| `POST /tenants`             | `SYSADMIN`                                             |
-| `GET /tenants`              | `SYSADMIN`                                             |
-| `GET /tenants/:id`          | `SYSADMIN`, `SCHOOL_ADMIN` (`tenantId` має співпадати) |
-| `PATCH /tenants/:id/status` | `SYSADMIN`                                             |
+| Endpoint                    | Access                     |
+| --------------------------- | -------------------------- |
+| `POST /tenants`             | `SYSADMIN`                 |
+| `GET /tenants`              | `SYSADMIN`                 |
+| `GET /tenants/:id`          | `SYSADMIN`, `SCHOOL_ADMIN` |
+| `PATCH /tenants/:id/status` | `SYSADMIN`                 |
 
-## 🔑 Authentication
+## Authentication
 
 Усі мають доступ:
 
@@ -31,45 +31,45 @@
 - `GET /auth/me`
 - `POST /auth/change-password`
 
-## 👤 Identity & Users
+## Identity & Users
 
-| Endpoint         | Access                                     |
-| ---------------- | ------------------------------------------ |
-| `GET /users/all` | `SYSADMIN`                                 |
-| `GET /users`     | `SCHOOL_ADMIN` (`tenantId` має співпадати) |
-| `POST /users`    | `SCHOOL_ADMIN`                             |
+| Endpoint         | Access         |
+| ---------------- | -------------- |
+| `GET /users/all` | `SYSADMIN`     |
+| `GET /users`     | `SCHOOL_ADMIN` |
+| `POST /users`    | `SCHOOL_ADMIN` |
 
 ## 👨‍🏫 Teachers
 
-| Endpoint                  | Access                          |
-| ------------------------- | ------------------------------- |
-| `GET /teachers/:userId`   | `SCHOOL_ADMIN`, або сам учитель |
-| `PATCH /teachers/:userId` | `SCHOOL_ADMIN`, або сам учитель |
+| Endpoint                  | Access                    |
+| ------------------------- | ------------------------- |
+| `GET /teachers/:userId`   | `TEACHER`, `SCHOOL_ADMIN` |
+| `PATCH /teachers/:userId` | `TEACHER`, `SCHOOL_ADMIN` |
 
 ## 🎓 Students
 
-| Endpoint                  | Access                                   |
-| ------------------------- | ---------------------------------------- |
-| `POST /students`          | `TEACHER`                                |
-| `GET /students/:userId`   | `TEACHER` цього студенту, `SCHOOL_ADMIN` |
-| `PATCH /students/:userId` | `TEACHER` цього студенту                 |
+| Endpoint                  | Access                    |
+| ------------------------- | ------------------------- |
+| `POST /students`          | `TEACHER`                 |
+| `GET /students/:userId`   | `TEACHER`, `SCHOOL_ADMIN` |
+| `PATCH /students/:userId` | `TEACHER`                 |
 
 ## 📅 Events
 
-| Endpoint                             | Access                              |
-| ------------------------------------ | ----------------------------------- |
-| `GET /events`                        | `SCHOOL_ADMIN` (tenant + global)    |
-| `GET /events/:id`                    | ALL (якщо тенант співпадає)         |
-| `POST /events`                       | `SCHOOL_ADMIN`, `TEACHER`           |
-| `PATCH /events/:id`                  | тільки організатор                  |
-| `POST /events/add-jury-member`       | організатор                         |
-| `POST /events/register`              | `TEACHER`                           |
-| `GET /events/:id/participants`       | організатор, `SCHOOL_ADMIN`, `JURY` |
-| `POST /events/:id/attendance`        | організатор                         |
-| `POST /events/request-video-upload`  | організатор, `TEACHER` учасник      |
-| `POST /events/complete-video-upload` | організатор, `TEACHER` УЧАСНИК      |
-| `POST /events/assign-place`          | `JURY`                              |
-| `POST /events/grade-performance`     | `JURY`                              |
+| Endpoint                            | Access                            |
+| ----------------------------------- | --------------------------------- |
+| `GET /events`                       | `SCHOOL_ADMIN`, `TEACHER`, `JURY` |
+| `GET /events/:id`                   | `SCHOOL_ADMIN`, `TEACHER`, `JURY` |
+| `POST /events`                      | `TEACHER`                         |
+| `PATCH /events/:id`                 | `TEACHER`                         |
+| `POST /events/add-jury-member`      | `TEACHER`                         |
+| `POST /events/register`             | `TEACHER`                         |
+| `GET /events/:id/participants`      | `TEACHER`, `JURY`                 |
+| `POST /events/:id/attendance`       | `TEACHER`                         |
+| `POST /events/request-video-upload` | `TEACHER`                         |
+| `POST /events/complete-upload`      | `TEACHER`                         |
+| `POST /events/assign-place`         | `JURY`                            |
+| `POST /events/grade-performance`    | `JURY`                            |
 
 ---
 
@@ -97,31 +97,94 @@
 
 ---
 
-## 🧠 Access Control Model
-
-Система використовує:
-
-### RBAC (Role-Based Access Control)
+### RBAC
 
 В залежності від своєї ролі користувач може або не може виконувати певні дії.
 Під час запиту до бекенду у мідлварі перевірятиметься чи має поточний користувач ролі,
 які вимагаються для поточного ендпоїнту
 
-Мідлвара прийматиме параметр - ролі і додаватиметься до кожного рауту, ці ролі передаватимуться певним списком в залежносіт від ендпоїнту до цієї мідлвари.
+Мідлвара `roles` і додається до кожного роуту. Для кожного ендпоїнту передається свій список дозволених ролей.
 
-### ABAC (Attribute-Based Access Control)
+### ABAC
 
-Додаткові перевірки нижче винести у окрему мідлвару, яка первірятиме атрибути. Даній мідлварі передавати індивідуальні функції перевірки для кожного рауту.
+Проводитиметься централізовано, але динамічно: один middleware-движок + набір перевірок, які підключаються на конкретний роут і передаються у мідлвару, тобто ще до початку бізнес логіки користувачу буде відмовлено або пропущено вперед.
 
-Або створити одразу багато мідлвар і застосовувати певну мідлвару для певного ендпоїнту де перевірка треба.
+Механізм:
 
-Для перевірки тенант айді додатково застосовуватимться РЛС на рівні бази даних.
+- `authorize({ roles, checks })`
+- `roles` - RBAC список ролей дозволених для роута
+- `checks` - масив ABAC перевірок (функцій), які виконуються послідовно
+- кожна ABAC функція має структуру типу `check(ctx): boolean | Promise<boolean>`
+- `ctx` містить дані запиту req і айді юзера для проводження перевірок
 
-Перевірки:
+Приклад:
 
-- `tenantId` користувача щоб той міг бачити лише ті ресурси які належать школі (наприклад, шкільний адміністратор бачитиме вчителів, учнів, та репорти лише своєї школи, користувачі бачитимуть івенти лише своєї школи, якщо вони не глобальні)
-- зв’язки (teacher → students)
-  Наприклад, учитель може бачити профайли ат редагувати, додавати плани уроків, записувати на івенти лише своїх студентів.
-  Журі може виставляти оцінки учасникам лише івенту, журі якого вони є.
-- власність
-  Наприклад, учитель бачить лише своїх учнів, свої плани уроків, і репорти.
+```ts
+router.patch(
+  "/students/:userId",
+  authorize({
+    roles: ["TEACHER"],
+    checks: [isSameTenant, anyOf([isSchoolAdmin, isAssignedTeacher])],
+  }),
+  handler,
+);
+```
+
+### ABAC перевірки
+
+- `isSameTenant(ctx)` - перевірка tenant межі
+- `isSelf(ctx)` - користувач працює зі своїм профілем
+- `isOwner(ctx)` - користувач є власником ресурсу
+- `isAssignedTeacher(ctx)` - teacher пов'язаний зі student
+- `isEventOrganizer(ctx)` - користувач організатор івенту
+- `isEventJury(ctx)` - користувач у складі журі івенту
+- `canViewGlobalOrTenantEvent(ctx)` - доступ до global або tenant event
+
+RLS у БД залишається другим рівнем захисту але не замінює middleware-перевірки на API-рівні, адже не має сенсу виконувати логіку до запиту у базу даних, якщо вона його відхилить.
+
+<!-- !!!!!!!!!!!1 -->
+
+### ABAC деталі по ендпоїнтам
+
+- Tenant Management:
+  - `GET /tenants/:id`: `isSelf`/scope check для `SCHOOL_ADMIN`, або лише `SYSADMIN` без ABAC
+- Identity & Users:
+  - `GET /users`: `isSameTenant`
+  - `POST /users`: `isSameTenant` для створюваного користувача
+- Teachers:
+  - `GET /teachers/:userId`: `isSelf` або `isSameTenant`
+  - `PATCH /teachers/:userId`: `isSelf` або `isSameTenant`
+- Students:
+  - `POST /students`: `isSameTenant` + teacher ownership для створеного зв'язку
+  - `GET /students/:userId`: `isAssignedTeacher` або `isSameTenant` (для `SCHOOL_ADMIN`)
+  - `PATCH /students/:userId`: `isAssignedTeacher` або `isSameTenant` (для `SCHOOL_ADMIN`)
+- Events:
+  - `GET /events`: `canViewGlobalOrTenantEvent`
+  - `GET /events/:id`: `canViewGlobalOrTenantEvent`
+  - `POST /events`: `isSameTenant` (або explicit global policy)
+  - `PATCH /events/:id`: `isEventOrganizer`
+  - `POST /events/add-jury-member`: `isEventOrganizer` + `isSameTenant` для додаваємого jury
+  - `POST /events/register`: `isAssignedTeacher` для student + `canViewGlobalOrTenantEvent`
+  - `GET /events/:id/participants`: `isEventOrganizer` або `isEventJury` або (`SCHOOL_ADMIN` + `isSameTenant`)
+  - `POST /events/:id/attendance`: `isEventOrganizer`
+  - `POST /events/request-video-upload`: `isEventOrganizer` або (`TEACHER` + relation to participant)
+  - `POST /events/complete-upload`: `isEventOrganizer` або (`TEACHER` + relation to participant)
+  - `POST /events/assign-place`: `isEventJury`
+  - `POST /events/grade-performance`: `isEventJury`
+- Lesson Plans:
+  - всі lesson-plans ендпоїнти: `isOwner` + `isSameTenant`
+  - `POST /lesson-plans/:id/assignments`: `isAssignedTeacher` + `isSameTenant`
+- Reports:
+  - `POST /reports`: `isOwner` + `isSameTenant`
+  - `GET /reports`: `isOwner` (для `TEACHER`) або `isSameTenant` (для `SCHOOL_ADMIN`)
+  - `GET /reports/:id`: `isOwner` (для `TEACHER`) або `isSameTenant` (для `SCHOOL_ADMIN`)
+  - `PATCH /reports/:id`: `isSameTenant` (для `SCHOOL_ADMIN`)
+
+### Чи ок POST з dynamic param
+
+Так, `POST` з dynamic path param (наприклад, `POST /events/:id/attendance`) є нормальним REST-підходом для action над конкретним ресурсом.
+
+- Обирай `/:id/...`, коли дія однозначно належить конкретному ресурсу.
+- Обирай endpoint без `:id` (наприклад, `POST /events/register`), коли `eventId` передається в body і це частина вашого поточного контракту.
+
+Головне - консистентність у всьому API. Зараз у документі шляхи вирівняні під `api-design.md`.
