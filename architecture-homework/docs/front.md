@@ -184,3 +184,99 @@ flowchart LR
    %% JURY
    R_J --> J_GRADING
 ```
+
+## State management
+
+Використовуватимемо Zustand, адже він
+
+- швидко імплементовується
+- забезпечує зручність маніпуляції глобальними даними
+
+Зберігатиму там:
+
+- інфу по юзеру
+- інфу по поточному змаганню, де людина бере участь або організовує наразі
+- токени сесії in-memory (`accessToken`)
+- системна інфа типу: `isAuthenticated`
+- інше
+
+## Api integration pattern
+
+Використовуватимемо React Query для керування асинхронними станами, кешування і background refetch.
+
+Практично це дає нам:
+
+- автоматичні стани `isLoading` / `isError` / `isSuccess` без ручного менеджменту в компонентах
+- кешування відповідей на рівні query key (з урахуванням `tenantId`, щоб не змішувати дані між тенантами)
+- повторний фетч у фоні при поверненні на вкладку або інвалідації кешу
+- централізоване оновлення даних після мутацій через `invalidateQueries`
+- контроль `staleTime` / `cacheTime` для балансу між актуальністю і кількістю запитів
+
+Axios використовуватимемо як HTTP-клієнт із централізованими interceptors.
+
+### Що робить request interceptor
+
+- додає Authorization header з accessToken для всіх захищених запитів
+
+### Що робить response interceptor
+
+- перехоплює помилку
+- один раз запускає refresh через POST /auth/refresh
+- якщо refresh успішний: оновлює accessToken in-memory і повторює початковий запит
+- якщо refresh неуспішний: очищає auth state і робить redirect на /login
+- для 403, 404, 500 повертає нормалізовану помилку для UI
+
+### Flow обробки відповіді
+
+1. Компонент викликає API через React Query.
+2. Axios request interceptor додає токен і tenant context (уоли треба отримати ресурс що належить певному тенанту шкільний адмін хоче список усіх учителів, для цього динамічним параметром додється тенант айді до реквесту).
+3. Бекенд повертає відповідь.
+4. Якщо відповідь 2xx: дані потрапляють у кеш React Query.
+5. Якщо відповідь 401: response interceptor викликає refresh.
+6. Якщо refresh успішний: початковий запит автоматично повторюється.
+7. Якщо refresh неуспішний: logout, очищення in-memory токена, redirect на /login.
+
+## Frontend Architecture (Mermaid)
+
+```mermaid
+flowchart LR
+   subgraph UI[Presentation Layer]
+      Pages[Pages]
+      Components[Shared Components]
+      Router[React Router + ProtectedRoute]
+   end
+
+   subgraph State[Client State Layer]
+      Zustand[Zustand Store\nuser tenant auth flags accessToken]
+      RQ[React Query\ncache queries mutations]
+   end
+
+   subgraph Data[Data Access Layer]
+      ApiClient[Axios API Client]
+      ReqInt[Request Interceptor\nadd Authorization add tenant context]
+      ResInt[Response Interceptor\n401 refresh retry or logout]
+   end
+
+   subgraph Backend[Backend]
+      REST[REST API]
+      Refresh[POST /auth/refresh]
+   end
+
+   Pages --> Components
+   Pages --> Router
+   Router --> Zustand
+   Router --> RQ
+
+   Components --> RQ
+   Components --> Zustand
+
+   RQ --> ApiClient
+   ApiClient --> ReqInt
+   ReqInt --> REST
+   REST --> ResInt
+   ResInt --> RQ
+   ResInt -->|401| Refresh
+   Refresh --> ResInt
+   ResInt -->|refresh ok| REST
+   ResInt -->|refresh failed| Zustand
+```
