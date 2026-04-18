@@ -67,50 +67,50 @@ flowchart LR
    R_J[JURY]
 
    %% Public / all authenticated
-   P_LOGIN[/login]
-   P_VERIFY[/verify-magic-link]
-   P_CH_PASS[/change-password]
-   P_PROFILE[/profile/me]
+   P_LOGIN["/login"]
+   P_VERIFY["/verify-magic-link"]
+   P_CH_PASS["/change-password"]
+   P_PROFILE["/profile/me"]
 
    %% SYSADMIN only
-   S_TENANTS[/admin/tenants]
-   S_TENANTS_NEW[/admin/tenants/new]
-   S_USERS[/admin/users]
+   S_TENANTS["/admin/tenants"]
+   S_TENANTS_NEW["/admin/tenants/new"]
+   S_USERS["/admin/users"]
 
    %% SYSADMIN + SCHOOL_ADMIN
-   SA_TENANT_ID[/admin/tenants/:id]
+   SA_TENANT_ID["/admin/tenants/:id"]
 
    %% SCHOOL_ADMIN only
-   A_DASH[/school/dashboard]
-   A_USERS[/school/users]
-   A_USERS_NEW[/school/users/new]
+   A_DASH["/school/dashboard"]
+   A_USERS["/school/users"]
+   A_USERS_NEW["/school/users/new"]
 
    %% SCHOOL_ADMIN + TEACHER
-   AT_TEACHER_ID[/teachers/:userId]
-   AT_STUDENTS[/students]
-   AT_STUDENT_ID[/students/:userId]
-   AT_REPORTS[/reports]
-   AT_REPORT_ID[/reports/:id]
+   AT_TEACHER_ID["/teachers/:userId"]
+   AT_STUDENTS["/students"]
+   AT_STUDENT_ID["/students/:userId"]
+   AT_REPORTS["/reports"]
+   AT_REPORT_ID["/reports/:id"]
 
    %% TEACHER only
-   T_STUDENT_NEW[/students/new]
-   T_EVENT_NEW[/events/new]
-   T_EVENT_EDIT[/events/:id/edit]
-   T_LP[/lesson-plans]
-   T_LP_NEW[/lesson-plans/new]
-   T_LP_ID[/lesson-plans/:id]
-   T_LP_EDIT[/lesson-plans/:id/edit]
-   T_REPORT_NEW[/reports/new]
+   T_STUDENT_NEW["/students/new"]
+   T_EVENT_NEW["/events/new"]
+   T_EVENT_EDIT["/events/:id/edit"]
+   T_LP["/lesson-plans"]
+   T_LP_NEW["/lesson-plans/new"]
+   T_LP_ID["/lesson-plans/:id"]
+   T_LP_EDIT["/lesson-plans/:id/edit"]
+   T_REPORT_NEW["/reports/new"]
 
    %% SCHOOL_ADMIN + TEACHER + JURY
-   E_EVENTS[/events]
-   E_EVENT_ID[/events/:id]
+   E_EVENTS["/events"]
+   E_EVENT_ID["/events/:id"]
 
    %% TEACHER + JURY
-   EJ_PART[/events/:id/participants]
+   EJ_PART["/events/:id/participants"]
 
    %% JURY only
-   J_GRADING[/events/:id/grading]
+   J_GRADING["/events/:id/grading"]
 
    %% All roles
    R_SYS --> P_LOGIN
