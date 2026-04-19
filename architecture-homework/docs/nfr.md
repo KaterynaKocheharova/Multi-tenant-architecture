@@ -5,21 +5,54 @@
 ### Database Query Optimization
 
 - **Indexes**: На `schoolId`, `userId`, `eventId`, `createdAt` (composite indexes для common queries)
-- **N+1 Query Prevention**: Eager loading / batch loading (DataLoader для GraphQL)
 - **Caching**:
-  - Redis для user profiles (TTL 1 час)
-  - Redis для report list (TTL 5 хвилин)
-  - Cache invalidation при змінах
+  - Redis для user profiles;
+  - Redis для report list;
+  - Cache invalidation при змінах.
+
+### CDN для асетів такі як картинки
 
 ### Frontend Performance
 
-- **Bundle size**: < 300 KB gzipped
-- **First Contentful Paint**: < 2 сек
-- **Time to Interactive**: < 4 сек
+#### Rendering Optimization
+
+- **Memoization**: Використовувати `React.memo()` для компонентів що часто перерендериться без змін props
+- **useMemo Hook**: Для expensive calculations (фільтрація, сортування великих списків)
+- **useCallback Hook**: Для стабілізації function references (запобігнення unnecessary re-renders у child components)
+- **Virtual Scrolling**: Для довгих списків (100+ items)
+  - Рендеріть тільки visible items у viewport
+  - Бібліотека: `react-window` або `react-virtualized`
+  - Example: Список студентів (500+ записів) повинен мати virtual scroll
+- **Code Splitting**: Розділити на chunks за routes
+- **Image Optimization**:
+  - Формат: WebP для modern browsers, PNG/JPG fallback
+  - Lazy load images: `loading="lazy"` атрибут або Intersection Observer API
+- **Web Vitals Targets** (Core Web Vitals):
+  - **LCP (Largest Contentful Paint)**: < 2.5 сек (зі всіх ресурсів)
+  - **FID (First Input Delay)**: < 100 мс (interaction responsiveness)
+  - **CLS (Cumulative Layout Shift)**: < 0.1 (visual stability)
+  - **Tools for monitoring**: `web-vitals` npm package, Google PageSpeed Insights
+- **State Management Optimization**:
+  - Завдяки Zustand (як ви вибрали) - будьте обережні з large updates
+  - Перевіряте що підписані компоненти тільки на потрібні частини стану
+
+  ```jsx
+  // ❌ Bad: re-renders коли будь-що в store змінюється
+  const user = useStore();
+
+  // ✅ Good: re-renders тільки якщо user змінився
+  const user = useStore((state) => state.user);
+  ```
+
+- **React Query Optimization**:
+  - `staleTime`: 1 хвилина для user profiles (не рефетчити на кожен mount)
+  - `cacheTime`: 5 хвилин для report lists (залишити в кешу при unmount)
+  - `refetchOnWindowFocus`: false для non-critical queries (щоб не рефетчити при alt+tab)
+- **Pagination**: Завантажувати сторінки on-demand, не всі сразу
 
 ---
 
-## 🚀 AVAILABILITY & RELIABILITY
+## AVAILABILITY
 
 ### Uptime SLA
 
@@ -53,6 +86,108 @@
 - **Readiness probe** (`GET/ready`): БД + Redis доступні
 - **Metrics**: CPU, memory, disk, request rate, error rate
 - **Alerts**: На 90% disk usage, CPU > 80% for 5 хвилин, > 1% 5xx errors
+
+---
+
+## 🛡️ RESILIENCY (Стійкість до збоїв)
+
+**Resiliency** це здатність системи **швидко відновитися** від проблем и **продовжити роботу** при деградованому режимі. Це важливо відрізняти від Availability та Reliability.
+
+### Fault Tolerance (Толерування до помилок)
+
+- **Single Point of Failure (SPOF)**: Виключити single points
+  - Кілька API servers (load balancer перед ними)
+  - Read replicas для БД (failover при crash)
+  - Backup email service (якщо основний fail)
+  - Backup DNS provider
+- **No Cascading Failures**: Якщо один сервіс впав, інші продовжують
+  ```
+  ❌ Bad: Auth service down → все падає
+  ✅ Good: Auth service down → cached tokens дозволяють деяким запитам пройти,
+           rest попадають в queue, потім переобробляються
+  ```
+
+### Graceful Degradation (Деградація з гідністю)
+
+Система повинна працювати з зменшеною функціональністю, а не повністю падати:
+
+```
+Сценарій: Redis (cache) недоступний
+❌ Система падає з 500 error
+✅ Система запитує дані з БД (повільніше, але працює)
+
+Сценарій: Email service недоступний
+❌ Бекенд crash при спробі відправити email
+✅ Email додається в queue, повторюється пізніше
+
+Сценарій: One API server упав
+❌ Load balancer розуміє, що 50% servers down
+✅ Load balancer відправляє запити на інші 3 servers
+```
+
+### Circuit Breaker Pattern
+
+Для запобігання "crashing cascade" при failure зовнішніх сервісів:
+
+```
+Стани:
+CLOSED (нормально): запити проходять
+  → Якщо помилки → перехід в OPEN
+
+OPEN (відключено): запити не проходять, повернути error одразу
+  → Після timeout → перейти в HALF_OPEN
+
+HALF_OPEN (тестування): дозволити 1 запит
+  → Якщо успіх → повернути в CLOSED
+  → Якщо fail → повернути в OPEN
+
+Приклад: Email service timeout
+- Перша помилка: CLOSED
+- 5 помилок за 30 сек: перейти в OPEN
+- Не намагатися відправити email наступні 5 хвилин
+- Після 5 хвилин: HALF_OPEN, спробувати знову
+- Якщо email успішно відправлений: повернути в CLOSED
+```
+
+### Auto-Recovery & Self-Healing
+
+- **Database failover**: Якщо primary БД упала, автоматично переключитися на replica (< 5 сек)
+- **Pod restart** (Kubernetes): Якщо контейнер crashed, kubelet перезапускає
+- **Connection pool reset**: Якщо всі connections hung, reset pool і create нові
+- **Cache warmup**: При перезавантаженні, попередньо завантажити hot data в Redis
+
+### Monitoring & Alerting for Resilience
+
+- **Alert на disk space < 10%** - якщо нема місця, система не може писати логи, може упасти
+- **Alert на memory > 90%** - risk OOM kill
+- **Alert на open file descriptors > 80%** - система не зможе відкрити нові connections
+- **Alert на queue depth > 1000** - jobs накопичуються, система не встигає
+
+### Chaos Engineering (Тестування Resiliency)
+
+Регулярно (щомісяця) симулюйте проблеми:
+
+```
+Сценарії для тестування:
+1. Відключити Redis → система повинна працювати без cache
+2. Відключити БД read replica → system використовує primary
+3. Затримати 50% network packets → запити медленніше, але не падають
+4. Kill 1 API server → load balancer перенаправить запити
+5. Заповнити диск на 95% → system alert, але не crash
+6. Інжектнути помилки в email service → retry logic спрацьовує
+```
+
+---
+
+## 📋 AVAILABILITY vs RELIABILITY vs RESILIENCY: Порівняння
+
+| Аспект          | AVAILABILITY                            | RELIABILITY                       | RESILIENCY                            |
+| --------------- | --------------------------------------- | --------------------------------- | ------------------------------------- |
+| **Визначення**  | % часу коли система online              | Коректність функцій               | Швидкість відновлення                 |
+| **Вимірювання** | Uptime % (99.9%)                        | Error rate, bugs                  | MTTR (Mean Time To Recover)           |
+| **Мета**        | Користувачі мають доступ                | Запити дають правильні результати | Система швидко повертається до норми  |
+| **Приклад**     | На 99.9%, система down 43 хвилин/місяць | 0.1% запитів fail                 | Коли fail, відновлення за < 5 хвилин  |
+| **як досягти**  | Load balancing, replicas                | Testing, monitoring               | Graceful degradation, circuit breaker |
 
 ---
 
