@@ -67,21 +67,15 @@
 
 #### 13. Audit Logging
 
-- Логувати критичні дії:
-  - Login/logout (успіх + failure)
-  - Доступ до sensitive data (reports, student grades)
-  - Rate limit violations
-  - Невдалі спроби доступу до чужих ресурсів
+- Login/logout (успіх + failure)
+- Доступ до sensitive data (reports, student grades)
+- Rate limit violations
+- Невдалі спроби доступу до чужих ресурсів
 
-<!-- !!!!!!!!!!! -->
+#### 14. Блокування айпі адрес при великій спробі невдалих запитів на автенцифікаційні ендпоїнти.
 
-Логування failed auth attempts  
-Кількість часу до блокування user  
-Audit всіх sensitive fields (encrypted)  
-Всі critical actions logged  
-Тести підтверджують що user не може access інших школ
-SSL/TLS Certificate Validity - Автоматичне renewal перед expiry  
-**Session Hijacking Prevention** limiting + token revocation working
-Escaping (Екранування): Ніколи не виводь дані «як є». Перетворюй символи < на &lt;, > на &gt;. Більшість сучасних фреймворків (React, Angular) роблять це автоматично.
+#### 15. SSL/TLS Certificate Validity - Автоматичне renewal перед expiry
 
-Sanitization (Очищення): Якщо тобі потрібно дозволити частину HTML (наприклад, у редакторі тексту), використовуй спеціальні бібліотеки (наприклад, DOMPurify), які видаляють небезпечні теги та атрибути.
+#### 16. Sanitization
+
+Прибирати теги та атрибути коду при перевірці даних із інпуту, щоб не дозволити зловмисному скірпту виконатися.
