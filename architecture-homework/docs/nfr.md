@@ -4,21 +4,7 @@
 
 ### Fault Tolerance
 
-- **Single Point of Failure (SPOF)**: Виключити single points
-  - Кілька API servers (load balancer перед ними)
-  - Read replicas для БД
-  - Backup email service
-
-- **No Cascading Failures**: Якщо один сервіс впав, інші продовжують
-  ```
-  ❌ Bad: Auth service down → все падає
-  ✅ Good: Auth service down → cached tokens дозволяють деяким запитам пройти,
-           rest попадають в queue, потім переобробляються
-  ```
-
-### Graceful Degradation (Деградація з гідністю)
-
-Система повинна працювати з зменшеною функціональністю, а не повністю падати:
+Система повинна працювати зі зменшеною функціональністю, а не повністю падати:
 
 ```
 Сценарій: Redis (cache) недоступний
@@ -58,11 +44,6 @@ HALF_OPEN (тестування): дозволити 1 запит
 - Якщо email успішно відправлений: повернути в CLOSED
 ```
 
-- **Queue система** (Bull, RabbitMQ) для async jobs:
-  - Send emails
-  - Generate reports
-  - File processing
-
 ### Error Handling
 
 - **Retry logic** з exponential backoff:
@@ -79,12 +60,6 @@ HALF_OPEN (тестування): дозволити 1 запит
 - **Backup frequency**: Щодня (auto-backup)
 - **Retention**: Мінімум 30 днів
 
-### Monitoring & Alerting for Resilience
-
-- **Alert на disk space < 10%** - якщо нема місця, система не може писати логи, може упасти
-- **Alert на memory > 90%** - risk OOM kill
-- **Alert на queue depth > 1000** - jobs накопичуються, система не встигає
-
 ## SCALABILITY
 
 ### Horizontal Scaling
@@ -96,34 +71,6 @@ HALF_OPEN (тестування): дозволити 1 запит
 
 - **Шардування по tenantId**: Кожна школа -> окремий сервер (у крайніх випадках, якщо проблема нойзі нейбор буде дуже нагальною)
 - **PostgreSQL Partitioning**: Партиціонування tables по schoolId. Сервер один, проте таблиця поділена на частинки по тенант айді, що робить пошук та перебирання швидшими, адже шукатиме в межах конкретної частинки
-
-## RELIABILITY
-
-### Data Consistency
-
-- **ACID compliance**: PostgreSQL гарантує
-- **Race condition prevention**: Лок для критичних екшенів. Наприклад, лтшилося одне місце на івент, приходить декілько користувачів. На першому ентрі локається і інші вже не можуть апдейтити залоканий ентрі
-
-### Testing
-
-- **Unit tests**: > 80% code coverage
-- **Integration tests**: Всі API endpoints + auth flows
-- **Load testing**: min 1000 concurrent users
-- **Chaos engineering**: Периодично тестувати відключення БД, Redis, terchoвиx сервісів
-
-## 🌍 COMPLIANCE & DATA PROTECTION
-
-### GDPR Compliance (якщо користувачі з ЄС)
-
-- **Right to be forgotten**: Вибір даних користувача + удалити з резервних копій за 30 днів
-- **Data Export**: Користувач може експортувати свої дані (JSON)
-- **Data Processing Agreement (DPA)**: З усіма sub-processors
-
-### Compliance for Ukraine
-
-- **PERSONAL DATA PROTECTION**: Закон України про захист персональних даних
-- **Retention policy**: Обов'язково вказати у Privacy Policy
-- **Шифрування**: At-rest encryption для sensitive data (passwords, email, studentDetails)
 
 ## OBSERVABILITY
 
