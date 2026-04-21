@@ -69,8 +69,12 @@ HALF_OPEN (тестування): дозволити 1 запит
 
 ### Database
 
-- **Шардування по tenantId**: Кожна школа -> окремий сервер (у крайніх випадках, якщо проблема нойзі нейбор буде дуже нагальною)
-- **PostgreSQL Partitioning**: Партиціонування tables по schoolId. Сервер один, проте таблиця поділена на частинки по тенант айді, що робить пошук та перебирання швидшими, адже шукатиме в межах конкретної частинки
+- **Primary path (current)**: shared PostgreSQL + RLS + table partitioning by `tenantId`.
+- **Conditional future path**: tenant sharding (school -> separate DB/server) is allowed only if triggers are met:
+  - sustained p95 latency > 500ms after indexing/partition tuning,
+  - repeated noisy-neighbor incidents affecting SLA,
+  - one tenant exceeds agreed storage or throughput threshold.
+- **Migration gate**: sharding is a planned future state, not current architecture.
 
 ## OBSERVABILITY
 

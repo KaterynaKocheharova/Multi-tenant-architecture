@@ -4,15 +4,21 @@
 
 1. Користувач проходить автентифікацію через magic link.
 2. Сервер видає:
-   - `access_token` (короткоживучий JWT) - має userId, jti - унікальний ідентифікатор
+   - `access_token` (короткоживучий JWT) - має `userId`,`jti`.
    - `refresh_token` cookie (довгоживучий токен сесії)
 
-### Налаштування cookie:
+### Нормативна конфігурація refresh cookie (single source)
 
 - `HttpOnly`
 - `Secure`
-- `SameSite=Strict`
+- `SameSite=Lax`
 - `Path=/auth`
+
+Приклад:
+
+```http
+Set-Cookie: refresh_token=<opaque>; HttpOnly; Secure; SameSite=Lax; Path=/auth
+```
 
 ### На сервері:
 
@@ -26,6 +32,7 @@
   issuedAt: Date,
   revoked: boolean
 }
+```
 
 3. Токени передаються:
    - `access_token` => через `Authorization` header (Bearer token)
@@ -54,10 +61,9 @@
 1. Якщо API повертає `401 Unauthorized`:
 
 - клієнт викликає:
-```
 
+```http
 POST /auth/refresh
-
 ```
 
 2. Браузер автоматично додає `refresh_token` cookie.
@@ -96,6 +102,10 @@ POST /auth/refresh
 - додає ексіс токен jti до denylist (база заблокованих токенів) - до таблиці заблокованих токенів
 
 revoked_tokens
+
 - jti: string
 - revokedAt: Date
+
+```
+
 ```

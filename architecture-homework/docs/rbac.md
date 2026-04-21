@@ -1,5 +1,8 @@
 # RBAC
 
+Canonical authorization source: `docs/authorization-matrix.md`.
+If any conflict appears between this file and the matrix, the matrix wins.
+
 ## Roles
 
 - `SYSADMIN`

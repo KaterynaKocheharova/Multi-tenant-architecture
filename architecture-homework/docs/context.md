@@ -97,7 +97,7 @@
 
 ### Core Concept
 
-- Report is **computed (not stored as a domain entity)**
+- Report is **computed and persisted as an immutable snapshot**
 
 ### Inputs
 
@@ -111,8 +111,8 @@
 - generate reports
 - combine event + lesson outcomes
 - produce grades and summaries
-- saves reports
+- persist generated report snapshots
 
 ### Ownership
 
-- Owns aggregation logic and saved generated reports
+- Owns aggregation logic and persisted report snapshots

@@ -112,7 +112,7 @@ FOR SELECT
 USING (
   current_setting('app.current_tenant', true) IS NOT NULL
   AND (
-    tenant_id = current_setting('app.current_tenant', true)::uuid
+    participant_tenant_id = current_setting('app.current_tenant', true)::uuid
     OR EXISTS (
       SELECT 1 FROM event e WHERE e.id = event_id AND e.scope = 'GLOBAL'
     )
@@ -125,7 +125,7 @@ WITH CHECK (
   current_setting('app.current_tenant', true) IS NOT NULL
   AND (
     -- tenant-scoped event: participant must belong to the same tenant
-    tenant_id = current_setting('app.current_tenant', true)::uuid
+    participant_tenant_id = current_setting('app.current_tenant', true)::uuid
     OR
     -- global event: any authenticated tenant may write participation
     EXISTS (
@@ -143,7 +143,7 @@ FOR SELECT
 USING (
   current_setting('app.current_tenant', true) IS NOT NULL
   AND (
-    tenant_id = current_setting('app.current_tenant', true)::uuid
+    participant_tenant_id = current_setting('app.current_tenant', true)::uuid
     OR EXISTS (
       SELECT 1 FROM event e WHERE e.id = event_id AND e.scope = 'GLOBAL'
     )
@@ -155,7 +155,7 @@ FOR INSERT, UPDATE
 WITH CHECK (
   current_setting('app.current_tenant', true) IS NOT NULL
   AND (
-    tenant_id = current_setting('app.current_tenant', true)::uuid
+    issuing_tenant_id = current_setting('app.current_tenant', true)::uuid
     OR EXISTS (
       SELECT 1 FROM event e WHERE e.id = event_id AND e.scope = 'GLOBAL'
     )

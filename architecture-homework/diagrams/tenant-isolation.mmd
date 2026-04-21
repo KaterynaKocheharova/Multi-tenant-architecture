@@ -44,7 +44,14 @@ graph TD
     EventGlobal[Global Event]
     ParticipationA[A Participation]
     ParticipationB[B Participation]
+    OrgTenant[organizingTenantId]
+    ParticipantTenant[participantTenantId]
+    IssuingTenant[issuingTenantId]
 
     EventGlobal --> ParticipationA
     EventGlobal --> ParticipationB
+    EventGlobal --> OrgTenant
+    ParticipationA --> ParticipantTenant
+    ParticipationB --> ParticipantTenant
+    ParticipationB --> IssuingTenant
   end

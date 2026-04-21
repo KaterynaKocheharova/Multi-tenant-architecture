@@ -1,5 +1,7 @@
 ## All endpoints listing
 
+Authorization source of truth: `docs/authorization-matrix.md`.
+
 ### Tenant Management
 
 - `POST /tenants` - sysadmin creates a tenant + school admin in one go (fills in their intial name and password)
@@ -44,7 +46,7 @@
 - `GET /events/:id/participants`
 - `POST /events/:id/attendance` - mark attendance (called for webinars)
 - `POST /events/request-video-upload`
-- `POST /events/complete-video-upload`
+- `POST /events/complete-upload`
 - `POST /events/assign-place` - for competitions
 - `POST /events/grade-performance` - for competitions
 
@@ -140,7 +142,7 @@ flowchart TB
 Access rules:
 
 - Required auth: yes
-- Allowed roles: `globalRole = Sysadmin`
+- Authorization contract: see `docs/authorization-matrix.md`
 
 ### 1. POST /tenants
 
@@ -212,7 +214,7 @@ Creates a platform user identity (teacher or student).
 Auth and roles:
 
 - Required auth: yes
-- Allowed roles: `schoolAdmin`
+- Authorization contract: see `docs/authorization-matrix.md`
 
 Request body:
 
@@ -280,7 +282,7 @@ Creates an event (`webinar`, `concert`, `competition`).
 Auth and roles:
 
 - Required auth: yes
-- Allowed roles: `schoolAdmin`, `teacher`
+- Authorization contract: see `docs/authorization-matrix.md`
 
 Request body:
 
@@ -340,7 +342,7 @@ Registers participant in event.
 Auth and roles:
 
 - Required auth: yes
-- Allowed roles: `schoolAdmin`, `teacher`
+- Authorization contract: see `docs/authorization-matrix.md`
 
 Request body:
 
@@ -398,7 +400,7 @@ Marks participant attendance (called for webinars directly, for competitions and
 Auth and roles:
 
 - Required auth: yes
-- Allowed roles: `jury` or `organizer`
+- Authorization contract: see `docs/authorization-matrix.md`
 
 Request body:
 
@@ -437,7 +439,7 @@ Step 1: request a one-time presigned upload URL for event video.
 Auth and roles:
 
 - Required auth: yes
-- Allowed roles: teacher (needs to be an organizer)
+- Authorization contract: see `docs/authorization-matrix.md`
 
 Request body:
 
@@ -496,7 +498,7 @@ Step 2: confirm upload and persist event video reference.
 Auth and roles:
 
 - Required auth: yes
-- Allowed roles: `schoolAdmin` or `teacher`
+- Authorization contract: see `docs/authorization-matrix.md`
 
 Request body:
 
@@ -550,7 +552,7 @@ Assigns place to participant.
 Auth and roles:
 
 - Required auth: yes
-- Allowed roles: `jury`
+- Authorization contract: see `docs/authorization-matrix.md`
 
 Request body:
 

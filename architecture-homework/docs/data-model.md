@@ -88,6 +88,7 @@ Notes:
 
 - Sysadmin accounts can exist without membership.
 - All school users must have one membership row.
+- Identity policy (v1): school-scoped users (`SCHOOL_ADMIN`, `TEACHER`, `STUDENT`, `JURY`) have one membership and belong to one tenant. Cross-school collaboration is modeled in event participation, not multi-tenant membership.- Identity policy (v1): school-scoped users (`SCHOOL_ADMIN`, `TEACHER`, `STUDENT`, `JURY`) have one membership and belong to one tenant. Cross-school collaboration is modeled in event participation, not multi-tenant membership.
 
 ### MembershipRole
 
@@ -145,45 +146,57 @@ Constraints:
 
 ### Event
 
-| Column          | Type                                | Constraints             |
-| --------------- | ----------------------------------- | ----------------------- |
-| id              | uuid                                | PK                      |
-| scope           | enum(TENANT, GLOBAL)                | not null                |
-| tenantId        | uuid                                | FK -> Tenant.id, null   |
-| type            | enum(webinar, concert, competition) | not null                |
-| name            | text                                | not null                |
-| topic           | text                                | null                    |
-| videoUrl        | text                                | null                    |
-| organizerUserId | uuid                                | FK -> User.id, not null |
-| startDate       | timestamptz                         | not null                |
-| endDate         | timestamptz                         | not null                |
-| createdBy       | uuid                                | FK -> User.id, not null |
-| createdAt       | timestamptz                         | not null                |
-| updatedAt       | timestamptz                         | not null                |
+| Column             | Type                                | Constraints               |
+| ------------------ | ----------------------------------- | ------------------------- |
+| id                 | uuid                                | PK                        |
+| scope              | enum(TENANT, GLOBAL)                | not null                  |
+| tenantId           | uuid                                | FK -> Tenant.id, null     |
+| organizingTenantId | uuid                                | FK -> Tenant.id, not null |
+| type               | enum(webinar, concert, competition) | not null                  |
+| name               | text                                | not null                  |
+| topic              | text                                | null                      |
+| videoUrl           | text                                | null                      |
+| organizerUserId    | uuid                                | FK -> User.id, not null   |
+| startDate          | timestamptz                         | not null                  |
+| endDate            | timestamptz                         | not null                  |
+| createdBy          | uuid                                | FK -> User.id, not null   |
+| createdAt          | timestamptz                         | not null                  |
+| updatedAt          | timestamptz                         | not null                  |
 
 Constraints:
 
 - check(endDate >= startDate)
 - check((scope = 'TENANT' and tenantId is not null) or (scope = 'GLOBAL' and tenantId is null))
 
+Attribution semantics:
+
+- `tenantId`: visibility owner for tenant-scoped events, null for global events.
+- `organizingTenantId`: tenant that created/owns organization narrative for the event.
+
 ### EventParticipation
 
-| Column             | Type                                             | Constraints                  |
-| ------------------ | ------------------------------------------------ | ---------------------------- |
-| id                 | uuid                                             | PK                           |
-| eventId            | uuid                                             | FK -> Event.id, not null     |
-| participantUserId  | uuid                                             | FK -> User.id, not null      |
-| tenantId           | uuid                                             | FK -> Tenant.id, not null    |
-| roleInEvent        | enum(participant, performer, speaker, organizer) | not null default participant |
-| attended           | boolean                                          | not null default false       |
-| attendanceMarkedAt | timestamptz                                      | null                         |
-| notes              | text                                             | null                         |
-| createdAt          | timestamptz                                      | not null                     |
-| updatedAt          | timestamptz                                      | not null                     |
+| Column               | Type                                             | Constraints                  |
+| -------------------- | ------------------------------------------------ | ---------------------------- |
+| id                   | uuid                                             | PK                           |
+| eventId              | uuid                                             | FK -> Event.id, not null     |
+| participantUserId    | uuid                                             | FK -> User.id, not null      |
+| participantTenantId  | uuid                                             | FK -> Tenant.id, not null    |
+| registeredByTenantId | uuid                                             | FK -> Tenant.id, not null    |
+| roleInEvent          | enum(participant, performer, speaker, organizer) | not null default participant |
+| attended             | boolean                                          | not null default false       |
+| attendanceMarkedAt   | timestamptz                                      | null                         |
+| notes                | text                                             | null                         |
+| createdAt            | timestamptz                                      | not null                     |
+| updatedAt            | timestamptz                                      | not null                     |
 
 Constraints:
 
 - unique(eventId, participantUserId)
+
+Attribution semantics:
+
+- `participantTenantId`: participant home tenant.
+- `registeredByTenantId`: tenant that performed the registration action.
 
 ### CompetitionParticipation
 
@@ -202,21 +215,27 @@ Validation rule:
 
 ### Award
 
-| Column        | Type        | Constraints                           |
-| ------------- | ----------- | ------------------------------------- |
-| id            | uuid        | PK                                    |
-| eventId       | uuid        | FK -> Event.id, not null              |
-| tenantId      | uuid        | FK -> Tenant.id, not null             |
-| participantId | uuid        | FK -> EventParticipation.id, not null |
-| title         | text        | not null                              |
-| s3Url         | text        | not null                              |
-| issuedAt      | timestamptz | not null                              |
-| metadata      | jsonb       | null                                  |
-| createdAt     | timestamptz | not null                              |
+| Column              | Type        | Constraints                           |
+| ------------------- | ----------- | ------------------------------------- |
+| id                  | uuid        | PK                                    |
+| eventId             | uuid        | FK -> Event.id, not null              |
+| issuingTenantId     | uuid        | FK -> Tenant.id, not null             |
+| participantTenantId | uuid        | FK -> Tenant.id, not null             |
+| participantId       | uuid        | FK -> EventParticipation.id, not null |
+| title               | text        | not null                              |
+| s3Url               | text        | not null                              |
+| issuedAt            | timestamptz | not null                              |
+| metadata            | jsonb       | null                                  |
+| createdAt           | timestamptz | not null                              |
 
 Constraints:
 
 - unique(eventId, participantId)
+
+Attribution semantics:
+
+- `issuingTenantId`: tenant that issued the award.
+- `participantTenantId`: tenant of the awarded participant.
 
 ### LessonPlan
 

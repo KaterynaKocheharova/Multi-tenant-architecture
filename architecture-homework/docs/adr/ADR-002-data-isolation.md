@@ -30,7 +30,8 @@ Use shared PostgreSQL with Row-Level Security as primary enforcement.
 5. For mixed visibility tables (`event`, `event_participation`, `award`), split SELECT and write policies:
    - **SELECT**: own-tenant rows OR `scope = 'GLOBAL'` rows (+ sysadmin override)
    - **event writes**: restricted to the owning tenant only
-   - **participation and award writes**: allow cross-tenant writes when the referenced event has `scope = 'GLOBAL'`, enforced via `EXISTS (SELECT 1 FROM event WHERE scope = 'GLOBAL')` in `WITH CHECK`
+	- **participation and award writes**: allow cross-tenant writes when the referenced event has `scope = 'GLOBAL'`, enforced via `EXISTS (SELECT 1 FROM event WHERE scope = 'GLOBAL')` in `WITH CHECK`
+	- **attribution fields are explicit**: `event.organizingTenantId`, `event_participation.participantTenantId`, `event_participation.registeredByTenantId`, `award.issuingTenantId`, `award.participantTenantId`
 
 ## Why?
 
