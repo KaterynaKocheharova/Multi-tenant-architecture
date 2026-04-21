@@ -1,107 +1,91 @@
-# ДОДАТКОВІ ГЛОБАЛЬНІ/СИСТЕМНІ РИЗИКИ
+# РИЗИКИ
 
-## 1. Ризик noisy neighbor у shared database
+## 1. Ризик noisy neighbor у database
 
 Один tenant з високим навантаженням може погіршити продуктивність для всіх інших tenant-ів.
 
-**Запропоноване рішення:**
+**Можливе рішення:**
 
-- Впровадити поділ SLO продуктивності як частину платформної архітектурної політики.
+1. Упровадити норму часу, за яку кожен користувач має отримувати відповідь від бази, наприклад, 100-300 мс.
+2. Використовувати систему моніторингу, що виявлятиме порушення від норми, що допоможе виявити, який у межах якого тенанта відбувається найбільше запитів.
+3. Використати окрему базу даних для даного тенанта або здійснити шардінг бази даних.
 
-## 2. Ризик гранулярності відновлення на рівні tenant
+Або: якщо проблема не база даних, то можна здійснити горизонтальне розширення, придбати більше серверів і додати лоуд балансер.
 
-Чисте відновлення даних одного tenant-а складніше, коли всі tenant-и працюють в одній спільній базі даних.
+## 2. Ризик витоку міжtenant-метаданих через GLOBAL events
 
-**Evidence:**
+Якщо, наприклад, журі з одної школи отримує деякі дані по учаснику змагання іншої школи, то існує ризик витоку даних, які не мали
+бути доступними при запиті.
+Або, інша ситуація, коли всі юзери бачать івенти, проте під час фетчінгу івенту було зафетчено також і організватора разом із його приватними полями.
 
-- shared database decision in docs/adr/ADR-002-data-isolation.md#L20
-- backup policy in docs/nfr.md#L60
+**Можливе рішення:**
 
-**Запропоноване рішення:**
+1. Створити SQL **view** `user_public_view` з лише безпечними колонками.
 
-- Визначити tenant-scoped стратегію відновлення та критерії приймання для сценаріїв часткового restore у DR-плануванні.
+```sql
+CREATE VIEW user_public_view
+WITH (security_barrier = true) AS
+SELECT
+  id,
+  full_name
+FROM "user";
+```
 
-## 3. Ризик витоку міжtenant-метаданих через GLOBAL events
+```sql
+-- безпечно: поверне лише id і full_name, решта полів фізично недоступна
+SELECT * FROM user_public_view WHERE id = $1;
+```
 
-Навіть за коректної row isolation, глобально видимі записи можуть розкривати чутливі патерни організаційної активності.
+**Щоб це не можна було обійти через join/relation** (наприклад `event_participation -> user`), блокуємо доступ до сирої таблиці і даємо доступ тільки до safe-view:
 
-**Evidence:**
+```sql
+-- роль API не має права читати базову таблицю user
+REVOKE SELECT ON "user" FROM app_api_role;
 
-- global-row visibility in docs/rls-details.md#L81
-- global-row visibility in docs/rls-details.md#L91
-- cross-tenant collaboration requirement in docs/adr/ADR-002-data-isolation.md#L39
+-- але має право читати лише безпечний view
+GRANT SELECT ON user_public_view TO app_api_role;
+```
 
-**Запропоноване рішення:**
+Приклад безпечного join для `participants`:
 
-- Визначити модель класифікації global-data з явним переліком: які поля глобально видимі, а які обмежені.
+```sql
+SELECT
+  ep.event_id,
+  ep.participant_user_id,
+  upv.id,
+  upv.full_name
+FROM event_participation ep
+JOIN user_public_view upv ON upv.id = ep.participant_user_id
+WHERE ep.event_id = $1;
+```
 
-## 4. Ризик складності політик у mixed-visibility RLS
+2. Використовувати тести.
 
-Коректність стає важче доводити, коли SELECT та write-шляхи розходяться для GLOBAL і TENANT scope.
+## 3. Ризик складності політик бази даних для забезпечення ізоляції даних.
 
-**Evidence:**
+Дуже складно зрозуміти ці політики, треба буде сетапити дуже багато перед розробкою.
 
-- mixed-table split policy design in docs/adr/ADR-002-data-isolation.md#L30
-- participation/award write predicates in docs/rls-details.md#L122
-- participation/award write predicates in docs/rls-details.md#L153
+**Можливе рішення**
 
-**Запропоноване рішення:**
+Долучити експертів які це зроблять якісно і швидко або проконсультуватися з ними щодо доречності використання політи. Можливо, можна без них.
 
-- Розглядати набір RLS-політик як versioned security artifact з перевіркою сценаріїв як release gate.
+## 4. Додатковий час до реквесту від перевірки чи джейсон веб токен є у денай списку чи ні.
 
-## 5. Ризик розходження шарів авторизації при масштабуванні
+**Можливе рішення:**
 
-RBAC/ABAC middleware та RLS можуть семантично дрейфувати з часом, що призводить до непослідовних allow/deny рішень між endpoint-ами.
+- Вимірювати час, і у випадку сповільнення запитів тимчасово її не виконувати.
+- Кешувати певну частину токенів у редіс.
+- Відмовитися від даної перевірки, проте забезпечити безпеку іншим способом.
 
-**Evidence:**
+## 5. Ризик викраденого JWT (stolen JWT)
 
-- layered authorization model in docs/rbac.md#L106
-- layered authorization model in docs/rbac.md#L114
-- layered authorization model in docs/rbac.md#L142
-- DB policy layer in docs/rls-details.md#L41
+Якщо access token буде викрадено (наприклад, через XSS, витік логів або перехоплення на скомпрометованому пристрої), зловмисник зможе виконувати запити від імені користувача до закінчення строку дії токена.
 
-**Запропоноване рішення:**
+**Можливе рішення:**
 
-- Вести єдиний каталог семантики авторизації, який зв'язує намір endpoint-а з API-перевірками та очікуваннями DB-політик.
-
-## 6. Ризик залежності auth hot-path від глобальних перевірок
-
-Перевірка revoked token на кожен запит може стати вузьким місцем за латентністю та доступністю при зростанні трафіку.
-
-**Evidence:**
-
-- denylist check for every request in diagrams/auth-sequence.mmd#L76
-- docs/security.md#L32
-
-**Запропоноване рішення:**
-
-- Визначити performance budget для token validation та поведінку у failure-mode при деградації denylist-залежності.
-
-## 7. Ризик blast radius при деплої
-
-Відсутність deployment topology ускладнює розуміння, чи ізольовані відмови, чи вони платформного масштабу.
-
-**Evidence:**
-
-- deployment doc is empty in docs/deployment.md
-- high-availability assumptions in docs/nfr.md#L18
-- high-availability assumptions in docs/nfr.md#L67
-
-**Запропоноване рішення:**
-
-- Описати межі платформної топології (region, network, runtime, data plane) та failure domains у deployment-документації.
-
-## 8. Ризик compliance/data-governance для міжtenant-потоків студентських даних
-
-Платформа підтримує міжшкільну взаємодію, але governance-межі видимості персональних даних визначені неявно.
-
-**Evidence:**
-
-- cross-tenant collaboration in docs/README.md#L14
-- student/participation entities in docs/data-model.md#L63
-- student/participation entities in docs/data-model.md#L169
-- audit logging requirements in docs/security.md#L68
-
-**Запропоноване рішення:**
-
-- Визначити governance matrix для обробки персональних даних за роллю, tenant boundary та event scope.
+1. Робити короткий TTL для access token (наприклад, 5-15 хв) - є зараз.
+2. Refresh token тримати тільки в `HttpOnly` + `Secure` cookie, не в localStorage. - є зараз.
+3. Додати ротацію refresh token при кожному `POST /auth/refresh`. - це є.
+4. Вести denylist для `jti` і перевіряти його для критичних endpoint-ів. - це є.
+5. Логувати аномалії сесій (новий IP/UA, підозріла географія, різкі паралельні запити) і форсовано ревокати сесію. - це є.
+6. Мінімізувати дані в JWT (не класти чутливі поля), використовувати тільки потрібні claims. - це є.
