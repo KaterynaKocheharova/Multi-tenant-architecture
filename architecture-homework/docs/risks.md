@@ -1,33 +1,107 @@
-Additional Global/Systemic Risks
+# ДОДАТКОВІ ГЛОБАЛЬНІ/СИСТЕМНІ РИЗИКИ
 
-Noisy-neighbor risk in shared database architecture: one high-activity tenant can degrade performance for all tenants.
+## 1. Ризик noisy neighbor у shared database
 
-Proposed solution: performance SLO partitioning as part of platform-level architecture policy.
+Один tenant з високим навантаженням може погіршити продуктивність для всіх інших tenant-ів.
 
-Tenant-level recovery granularity risk: restoring one tenant cleanly is harder when all tenants share the same database.
-Evidence: shared database decision in docs/adr/ADR-002-data-isolation.md#L20 and backup policy in docs/nfr.md#L60.
-Proposed solution: Define tenant-scoped recovery strategy and acceptance criteria for partial restore scenarios in disaster recovery planning.
+**Запропоноване рішення:**
 
-Cross-tenant metadata leakage risk through GLOBAL events: even when row isolation is correct, globally visible records can reveal sensitive organizational activity patterns.
-Evidence: global-row visibility in docs/rls-details.md#L81 and docs/rls-details.md#L91, plus cross-tenant collaboration requirement in docs/adr/ADR-002-data-isolation.md#L39.
-Proposed solution: Define a global-data classification model that explicitly states which fields are globally visible vs restricted.
+- Впровадити поділ SLO продуктивності як частину платформної архітектурної політики.
 
-Policy complexity risk in mixed-visibility RLS: correctness becomes difficult to reason about as SELECT and write paths diverge for GLOBAL vs TENANT scopes.
-Evidence: mixed-table split policy design in docs/adr/ADR-002-data-isolation.md#L30 and detailed participation/award write predicates in docs/rls-details.md#L122 and docs/rls-details.md#L153.
-Proposed solution: Treat RLS policy set as a versioned security artifact with scenario-based policy verification as a release gate.
+## 2. Ризик гранулярності відновлення на рівні tenant
 
-Authorization-layer divergence risk at scale: RBAC/ABAC middleware and RLS can drift semantically over time, causing inconsistent allow/deny behavior across endpoints.
-Evidence: layered authorization model in docs/rbac.md#L106, docs/rbac.md#L114, docs/rbac.md#L142 and separate DB policy layer in docs/rls-details.md#L41.
-Proposed solution: Define a single authorization semantics catalog that maps endpoint intent to API checks and DB policy expectations.
+Чисте відновлення даних одного tenant-а складніше, коли всі tenant-и працюють в одній спільній базі даних.
 
-Global auth hot-path dependency risk: per-request revoked token checks can become a latency and availability bottleneck as platform traffic grows.
-Evidence: denylist check for every request in diagrams/auth-sequence.mmd#L76 and docs/security.md#L32.
-Proposed solution: Define token validation performance budgets and failure-mode behavior for denylist dependency degradation.
+**Evidence:**
 
-Deployment blast-radius risk: missing deployment topology leaves unclear whether failures are isolated or platform-wide.
-Evidence: deployment doc is empty in docs/deployment.md and high-availability assumptions exist in docs/nfr.md#L18 and docs/nfr.md#L67.
-Proposed solution: Define platform topology boundaries (region, network, runtime, data plane) and failure domains in deployment architecture documentation.
+- shared database decision in docs/adr/ADR-002-data-isolation.md#L20
+- backup policy in docs/nfr.md#L60
 
-Compliance and data-governance risk for cross-tenant student data flows: platform supports cross-school participation, but governance boundaries for personal data visibility are not explicit.
-Evidence: cross-tenant collaboration in docs/README.md#L14, student/participation entities in docs/data-model.md#L63 and docs/data-model.md#L169, and audit logging requirements in docs/security.md#L68.
-Proposed solution: Define a governance matrix for personal data processing by role, tenant boundary, and event scope.
+**Запропоноване рішення:**
+
+- Визначити tenant-scoped стратегію відновлення та критерії приймання для сценаріїв часткового restore у DR-плануванні.
+
+## 3. Ризик витоку міжtenant-метаданих через GLOBAL events
+
+Навіть за коректної row isolation, глобально видимі записи можуть розкривати чутливі патерни організаційної активності.
+
+**Evidence:**
+
+- global-row visibility in docs/rls-details.md#L81
+- global-row visibility in docs/rls-details.md#L91
+- cross-tenant collaboration requirement in docs/adr/ADR-002-data-isolation.md#L39
+
+**Запропоноване рішення:**
+
+- Визначити модель класифікації global-data з явним переліком: які поля глобально видимі, а які обмежені.
+
+## 4. Ризик складності політик у mixed-visibility RLS
+
+Коректність стає важче доводити, коли SELECT та write-шляхи розходяться для GLOBAL і TENANT scope.
+
+**Evidence:**
+
+- mixed-table split policy design in docs/adr/ADR-002-data-isolation.md#L30
+- participation/award write predicates in docs/rls-details.md#L122
+- participation/award write predicates in docs/rls-details.md#L153
+
+**Запропоноване рішення:**
+
+- Розглядати набір RLS-політик як versioned security artifact з перевіркою сценаріїв як release gate.
+
+## 5. Ризик розходження шарів авторизації при масштабуванні
+
+RBAC/ABAC middleware та RLS можуть семантично дрейфувати з часом, що призводить до непослідовних allow/deny рішень між endpoint-ами.
+
+**Evidence:**
+
+- layered authorization model in docs/rbac.md#L106
+- layered authorization model in docs/rbac.md#L114
+- layered authorization model in docs/rbac.md#L142
+- DB policy layer in docs/rls-details.md#L41
+
+**Запропоноване рішення:**
+
+- Вести єдиний каталог семантики авторизації, який зв'язує намір endpoint-а з API-перевірками та очікуваннями DB-політик.
+
+## 6. Ризик залежності auth hot-path від глобальних перевірок
+
+Перевірка revoked token на кожен запит може стати вузьким місцем за латентністю та доступністю при зростанні трафіку.
+
+**Evidence:**
+
+- denylist check for every request in diagrams/auth-sequence.mmd#L76
+- docs/security.md#L32
+
+**Запропоноване рішення:**
+
+- Визначити performance budget для token validation та поведінку у failure-mode при деградації denylist-залежності.
+
+## 7. Ризик blast radius при деплої
+
+Відсутність deployment topology ускладнює розуміння, чи ізольовані відмови, чи вони платформного масштабу.
+
+**Evidence:**
+
+- deployment doc is empty in docs/deployment.md
+- high-availability assumptions in docs/nfr.md#L18
+- high-availability assumptions in docs/nfr.md#L67
+
+**Запропоноване рішення:**
+
+- Описати межі платформної топології (region, network, runtime, data plane) та failure domains у deployment-документації.
+
+## 8. Ризик compliance/data-governance для міжtenant-потоків студентських даних
+
+Платформа підтримує міжшкільну взаємодію, але governance-межі видимості персональних даних визначені неявно.
+
+**Evidence:**
+
+- cross-tenant collaboration in docs/README.md#L14
+- student/participation entities in docs/data-model.md#L63
+- student/participation entities in docs/data-model.md#L169
+- audit logging requirements in docs/security.md#L68
+
+**Запропоноване рішення:**
+
+- Визначити governance matrix для обробки персональних даних за роллю, tenant boundary та event scope.
