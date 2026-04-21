@@ -14,3 +14,7 @@ Evidence: docs/rbac.md#L106, docs/rbac.md#L114, docs/rbac.md#L142.
 
 You chose a token/session model with in-memory access token, HttpOnly refresh cookie rotation, and denylist revocation checks.
 Evidence: docs/auth.md#L35, docs/auth.md#L63, docs/auth.md#L75, docs/auth.md#L96, diagrams/auth-sequence.mmd#L50, diagrams/auth-sequence.mmd#L78.
+
+postgres, magic link 2fa, jwt, sth else
+
+react over next.js
