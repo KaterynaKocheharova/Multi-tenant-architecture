@@ -1,3 +1,5 @@
+<!-- CONNECT WITH RBAC - ABAC -->
+
 <!-- а також продумати як я обмежуватиму доступ до тенант -->
 
 ## All endpoints listing
