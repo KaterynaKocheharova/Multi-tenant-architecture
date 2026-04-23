@@ -20,7 +20,6 @@ sequenceDiagram
 	participant Client
 	participant API as Backend API
 	participant Auth as JWT Validator
-	participant MW as Tenant Middleware
 	participant DB as PostgreSQL
 
 	Client->>API: Request + JWT
@@ -31,15 +30,9 @@ sequenceDiagram
 		API-->>Client: 401 Unauthorized
 	else Valid claims
 		API->>DB: Load user + resolve schoolId
-		DB-->>API: User record
-	    API->>DB: BEGIN
-		API->>DB: SET LOCAL app.current_tenant = schoolId
-		API->>DB: SET LOCAL app.current_global_role
-		API->>DB: Query with RLS + schoolId filter via tx
-		DB-->>API: Scoped rows
-		API->>DB: COMMIT
-		API-->>Client: 200 OK
-		end
+		DB-->>API: User record with schoolId
+		API-->>API: Attach user to request
+		API-->>Client: Continue with tenant context
 	end
 ```
 
