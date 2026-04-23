@@ -1,20 +1,16 @@
 ## Контекст
 
-Платформа є мультитенантною і повинна гарантувати, що кожен запит виконується у правильному контексті тенанта щоб попередити витоки даних.
+Необхідно визначити безпечний та легкий спосіб, як можна дізнатися до якого тенанта відноситься юзер.
 
 ## Рішення
 
-Використовувати JWT-автентифікацію для розпізнавання користувача і його schoolId:
+Визначати тенанта через автентифікацію і даних юзера з бази.
 
 1. Витягти та валідувати JWT.
 2. Прочитати `userId` з payload токена.
 3. Завантажити користувача і визначити тенанта з даних.
 4. Прикріпити користувача до об'єкта запиту.
-5. Якщо реквест до ендпоїнта, де динамічним параметром є schoolId, у спеціально призначеній мідлварі зробити перевірку, чи користувач може робити такий реквест. Якщо динамічним параметром не є schoolId, а запит буде на отримання певних даних, то використовуються можливості рлс + фільтрація за schoolId.
-6. Виконувати логіку БД у контексті тенанта лише через `withTenantContext(...)`.
-7. Всередині транзакції встановити:
-   - `SET LOCAL app.current_tenant = <schoolId>`
-   - `SET LOCAL app.current_global_role = <role>`
+5. Виконувати логіку БД у контексті тенанта лише через `withTenantContext(...)` (див. ADR-002)
 
 ## Діаграма
 
@@ -36,29 +32,13 @@ sequenceDiagram
 	else Valid claims
 		API->>DB: Load user + resolve schoolId
 		DB-->>API: User record
-
-		alt schoolId is a dynamic route param
-			API->>MW: Check user membership for schoolId
-			alt User not member of tenant
-				MW-->>Client: 403 Forbidden
-			else User is member
-				MW-->>API: Access granted
-				API->>DB: BEGIN
-				API->>DB: SET LOCAL app.current_tenant = schoolId
-				API->>DB: SET LOCAL app.current_global_role
-				API->>DB: Tenant-scoped queries via tx
-				DB-->>API: Scoped rows
-				API->>DB: COMMIT
-				API-->>Client: 200 OK
-			end
-		else No schoolId route param
-			API->>DB: BEGIN
-			API->>DB: SET LOCAL app.current_tenant = schoolId
-			API->>DB: SET LOCAL app.current_global_role
-			API->>DB: Query with RLS + schoolId filter via tx
-			DB-->>API: Scoped rows
-			API->>DB: COMMIT
-			API-->>Client: 200 OK
+	    API->>DB: BEGIN
+		API->>DB: SET LOCAL app.current_tenant = schoolId
+		API->>DB: SET LOCAL app.current_global_role
+		API->>DB: Query with RLS + schoolId filter via tx
+		DB-->>API: Scoped rows
+		API->>DB: COMMIT
+		API-->>Client: 200 OK
 		end
 	end
 ```
@@ -67,12 +47,11 @@ sequenceDiagram
 
 ### Позитивні
 
-- контекст тенанта визначається зі стану БД, а не зі застарілих даних токена
-- знижений ризик витоку даних між тенантами, адже на кожному реквесті поряд з перевіркою токена буде перевірятися, чи може юзер отримати доступ до поточного ендпоїнту
+- контекст тенанта визначається зі стану БД, що є надійно
 
 ### Негативні
 
-- тільки ті що пов'язані з токеном - крадіжка токена спричинить витоки даних
+- крадіжка токена спричинить витоки даних
 
 ## Розглянуті альтернативи
 
