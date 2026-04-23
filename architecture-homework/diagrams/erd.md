@@ -6,6 +6,7 @@ This document contains Mermaid ER diagrams based on the current data model in `d
 
 ```mermaid
 erDiagram
+    direction TB
     TENANT {
         id uuid PK
         name text
@@ -61,7 +62,6 @@ erDiagram
         schoolId uuid FK
         teacherUserId uuid FK
         studentUserId uuid FK
-        status enum
     }
 
     EVENT {
@@ -73,6 +73,8 @@ erDiagram
         topic text
         videoUrl text
         organizerUserId uuid FK
+        startDate timestamptz
+        endDate timestamptz
         createdBy uuid FK
     }
 
@@ -80,26 +82,18 @@ erDiagram
         id uuid PK
         eventId uuid FK
         participantUserId uuid FK
-        schoolId uuid FK
         roleInEvent enum
         attended boolean
+        attendanceMarkedAt timestamptz
+        notes text
     }
 
     COMPETITION_PARTICIPATION {
         participationId uuid PK, FK
         grade numeric
         place integer
-        juryNotes text
-    }
-
-    AWARD {
-        id uuid PK
-        eventId uuid FK
-        schoolId uuid FK
-        participantId uuid FK
-        title text
-        s3Url text
-        issuedAt timestamptz
+        createdAt timestamptz
+        updatedAt timestamptz
     }
 
     LESSON_PLAN {
@@ -108,6 +102,7 @@ erDiagram
         teacherUserId uuid FK
         isTemplate boolean
         title text
+        content jsonb
     }
 
     LESSON_PLAN_ASSIGNMENT {
@@ -127,6 +122,9 @@ erDiagram
         periodStart date
         periodEnd date
         reportType enum
+        filters jsonb
+        snapshotPayload jsonb
+        generatedAt timestamptz
     }
 
     USER ||--o| TEACHER_DETAILS : has
@@ -145,11 +143,7 @@ erDiagram
 
     EVENT ||--o{ EVENT_PARTICIPATION : has
     USER ||--o{ EVENT_PARTICIPATION : has
-    TENANT ||--o{ EVENT_PARTICIPATION : has
     EVENT_PARTICIPATION ||--|| COMPETITION_PARTICIPATION : has
-    EVENT ||--o{ AWARD : has
-    TENANT ||--o{ AWARD : has
-    EVENT_PARTICIPATION ||--o{ AWARD : has
 
     TENANT ||--o{ LESSON_PLAN : has
     USER ||--o{ LESSON_PLAN : has
@@ -165,9 +159,11 @@ erDiagram
 
 ```mermaid
 erDiagram
+    direction TB
     TENANT {
         id uuid PK
         name text
+        status enum
     }
 
     USER {
@@ -195,6 +191,7 @@ erDiagram
         id uuid PK
         userId uuid FK
         schoolId uuid FK
+        status enum
     }
 
     MEMBERSHIP_ROLE {
@@ -208,6 +205,8 @@ erDiagram
         userId uuid FK
         schoolId uuid FK
         tokenHash text
+        expiresAt timestamptz
+        consumedAt timestamptz
     }
 
     USER ||--o| TEACHER_DETAILS : has
@@ -223,9 +222,11 @@ erDiagram
 
 ```mermaid
 erDiagram
+    direction TB
     TENANT {
         id uuid PK
         name text
+        status enum
     }
 
     USER {
@@ -239,52 +240,48 @@ erDiagram
         schoolId uuid FK
         type enum
         name text
+        topic text
         videoUrl text
         organizerUserId uuid FK
+        startDate timestamptz
+        endDate timestamptz
+        createdBy uuid FK
     }
 
     EVENT_PARTICIPATION {
         id uuid PK
         eventId uuid FK
         participantUserId uuid FK
-        schoolId uuid FK
         roleInEvent enum
         attended boolean
+        attendanceMarkedAt timestamptz
+        notes text
     }
 
     COMPETITION_PARTICIPATION {
         participationId uuid PK, FK
         grade numeric
         place integer
-    }
-
-    AWARD {
-        id uuid PK
-        eventId uuid FK
-        schoolId uuid FK
-        participantId uuid FK
-        title text
-        s3Url text
+        createdAt timestamptz
+        updatedAt timestamptz
     }
 
     TENANT ||--o{ EVENT : has
     USER ||--o{ EVENT : references_user
     EVENT ||--o{ EVENT_PARTICIPATION : has
     USER ||--o{ EVENT_PARTICIPATION : has
-    TENANT ||--o{ EVENT_PARTICIPATION : has
     EVENT_PARTICIPATION ||--|| COMPETITION_PARTICIPATION : has
-    EVENT ||--o{ AWARD : has
-    EVENT_PARTICIPATION ||--o{ AWARD : has
-    TENANT ||--o{ AWARD : has
 ```
 
 ## Lesson Planning And Reports
 
 ```mermaid
 erDiagram
+    direction TB
     TENANT {
         id uuid PK
         name text
+        status enum
     }
 
     USER {
@@ -298,6 +295,7 @@ erDiagram
         teacherUserId uuid FK
         isTemplate boolean
         title text
+        content jsonb
     }
 
     LESSON_PLAN_ASSIGNMENT {
@@ -317,6 +315,9 @@ erDiagram
         periodStart date
         periodEnd date
         reportType enum
+        filters jsonb
+        snapshotPayload jsonb
+        generatedAt timestamptz
     }
 
     TEACHER_STUDENT_ASSIGNMENT {
