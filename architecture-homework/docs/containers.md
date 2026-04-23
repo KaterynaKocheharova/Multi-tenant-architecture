@@ -13,7 +13,7 @@
 - Рендеринг інтерфейсу на основі ролей (RBAC)
 - Комунікація з backend API
 
-## ⚙️ Backend API (Node.js)
+## Backend API (Node.js)
 
 ### Відповідальність
 
