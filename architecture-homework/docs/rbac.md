@@ -1,3 +1,5 @@
+<!-- EVENT LEVEL ACCESSS -->
+
 # RBAC
 
 Canonical authorization source: `docs/authorization-matrix.md`.
