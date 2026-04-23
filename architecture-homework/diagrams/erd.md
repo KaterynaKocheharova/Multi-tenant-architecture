@@ -273,7 +273,7 @@ erDiagram
     EVENT_PARTICIPATION ||--|| COMPETITION_PARTICIPATION : має
 ```
 
-## Планування уроків та звітність
+## Планування уроків
 
 ```mermaid
 erDiagram
@@ -307,19 +307,6 @@ erDiagram
         status enum
     }
 
-    REPORT {
-        id uuid PK
-        schoolId uuid FK
-        requestedByUserId uuid FK
-        teacherUserId uuid FK
-        periodStart date
-        periodEnd date
-        reportType enum
-        filters jsonb
-        snapshotPayload jsonb
-        generatedAt timestamptz
-    }
-
     TEACHER_STUDENT_ASSIGNMENT {
         id uuid PK
         schoolId uuid FK
@@ -334,6 +321,37 @@ erDiagram
     USER ||--o{ LESSON_PLAN_ASSIGNMENT : має
     TENANT ||--o{ TEACHER_STUDENT_ASSIGNMENT : має
     USER ||--o{ TEACHER_STUDENT_ASSIGNMENT : посилання_на_користувача
+```
+
+## Звітність
+
+```mermaid
+erDiagram
+    direction TB
+    TENANT {
+        id uuid PK
+        name text
+        status enum
+    }
+
+    USER {
+        id uuid PK
+        fullName text
+    }
+
+    REPORT {
+        id uuid PK
+        schoolId uuid FK
+        requestedByUserId uuid FK
+        teacherUserId uuid FK
+        periodStart date
+        periodEnd date
+        reportType enum
+        filters jsonb
+        snapshotPayload jsonb
+        generatedAt timestamptz
+    }
+
     TENANT ||--o{ REPORT : має
     USER ||--o{ REPORT : посилання_на_користувача
 ```
