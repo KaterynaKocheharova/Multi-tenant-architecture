@@ -1,31 +1,34 @@
-# PROJECT DESCRIPTION
+# ОПИС ПРОЄКТУ
 
-Music teachers in Ukraine often spend a significant amount of time at the end of the academic year and on each vacation completing administrative work—documenting lesson plans, listing participation in concerts, competitions, and webinars to create a report. This process is repetitive, time-consuming, and often disorganized, especially given the large number of events and extracurricular activities involved in music education.
+Вчителі музики в Україні часто витрачають значну кількість часу наприкінці навчального року та на кожних канікулах на виконання адміністративної роботи — документування планів уроків, перелік участі У концертах, змаганнях та вебінарах для складання звіту. Цей процес є повторюваним, трудомістким і часто неорганізованим, особливо з огляду на велику кількість заходів та позакласної діяльності в музичній освіті.
 
-The goal of this project is to simplify and automate these tasks.
+Мета цього проєкту — спростити та автоматизувати ці завдання.
 
-We propose a platform that will automatically collect data such as:
+Ми пропонуємо платформу, яка автоматично збиратиме такі дані:
 
-- lessons conducted
-- students performances and concerts
-- professional development (webinars)
-- achievements
+- проведені уроки
+- відвідування та організація заходів учителями та їх учнями
+- перемоги
 
-The platform is designed as a multi-tenant SaaS solution, where each school can register as a separate tenant and manage its own users, data, and workflows in an isolated environment while still being able to collaborate with other tenants in the form of creating cross-school webinars and competitions.
+Платформа розроблена як мультитенантне SaaS-рішення, де кожна школа може зареєструватися як окремий тенант і керувати своїми користувачами, даними та процесами в ізольованому середовищі, при цьому маючи можливість співпрацювати з іншими тенантами у форматі міжшкільних вебінарів та змагань.
 
-# ASSUMPTIONS
+# ПРИПУЩЕННЯ
 
-1. **Reduced human error**  
-   Automating data collection and report generation will minimize manual input, reducing mistakes, inconsistencies, and missing information.
-2. **Improved teacher well-being**  
-   By reducing administrative workload, teachers will have more time for personal life, rest, and family—especially during high-stress periods like the end of the academic year.
-3. **Happier and more productive students**  
-   Teachers happier - students happier.
-4. **Faster report generation**  
-   Reports that currently take hours to create due to teachers remembering everything and double-checking will be generated instantly or within minutes using pre-collected data.
-5. **Increased productivity during the school year**  
-   Teachers will spend less time on documentation and more time on teaching, student engagement, and creative work.
-6. **Better visibility of teacher achievements**  
-   The platform will make it easier to track and showcase participation in concerts, competitions, and professional development activities.
-7. **Adoption depends on ease of use**  
-   If the platform is not significantly simpler than current workflows, teachers may resist using it—especially those less comfortable with technology.
+1. **Зменшення людських помилок**  
+   Інформація призодитиме з бази, а не з голови чи в результаті пригадування і збирання інформації з декількох джерел.
+2. **Покращення добробуту вчителів**  
+   Зменшення адміністративного навантаження дасть вчителям більше часу для особистого життя, відпочинку та сім'ї - особливо в напружені періоди, наприклад наприкінці навчального року.
+3. **Швидша генерація звітів**  
+   Звіти, на створення яких зараз витрачаються години через необхідність пригадувати все і перевіряти двічі, генеруватимуться миттєво або за кілька хвилин на основі заздалегідь зібраних даних.
+4. **Підвищення продуктивності протягом навчального року**  
+   Вчителі витрачатимуть менше часу на документацію і більше — на викладання, взаємодію з учнями та творчу роботу.
+5. **Краща видимість досягнень вчителів**  
+   Платформа спростить відстеження та демонстрацію участі в концертах, змаганнях та заходах з підвищення кваліфікації.
+
+# Негативні припущення
+
+1. **Впровадження залежить від зручності використання**  
+   Якщо платформа не буде суттєво простішою за поточні процеси, вчителі можуть чинити опір її використанню — особливо ті, хто менш комфортно почувається з технологіями.
+
+2. **Неможливість швидкої реалізації ідеї, адже потребує взаємозгоди всіх шкіл на державному рівні**
+   Необхідне погодження з міністерством освіти України та глибоке вивчення її законів.

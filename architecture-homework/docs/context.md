@@ -1,118 +1,118 @@
-# School Management System - Architecture Overview
+# Система управління школою — огляд архітектури
 
-## Tenant Model
+## Модель тенанта
 
-- The system is multi-tenant
-- Tenant boundary is defined by a **School**
-- Each school is fully isolated using `schoolId`
+- Система є мультитенантною
+- Межа тенанта визначається **Школою**
+- Кожна школа повністю ізольована за допомогою `schoolId`
 
-## Tenant Management Context (Platform Level)
+## Контекст управління тенантами (рівень платформи)
 
-### Entities
+### Сутності
 
 - Tenant (School)
 - TenantSettings
 
-### Behaviors
+### Поведінка
 
-- register school (create tenant)
-- activate / suspend tenant
+- реєстрація школи (створення тенанта)
+- активація / призупинення тенанта
 
-### Ownership
+### Відповідальність
 
-- Owns tenant lifecycle
-- Owns global tenant registry
-- Does NOT own teacher/student domain data
+- Відповідає за lifecycle тенанта
+- Відповідає за глобальний реєстр тенантів
+- НЕ відповідає за доменні дані вчителів/учнів
 
-## Identity & Access Context
+## Контекст ідентифікації та доступу
 
-### Entities
+### Сутності
 
 - User
 - Role
 - Permission
-- Membership (user in tenant)
+- Membership (юзер у тенанті)
 
-### Behaviors
+### Поведінка
 
-- authenticate user
-- assign role
-- grant/revoke permissions
-- enforce school-level access boundaries
+- автентифікація юзера
+- призначення ролі
+- надання/відкликання дозволів
+- застосування меж доступу на рівні школи
 
-### Ownership
+### Відповідальність
 
-- Owns authentication and authorization
-- Owns user-to-tenant association
-- Does NOT own tenant provisioning lifecycle
+- Відповідає за автентифікацію та авторизацію
+- Відповідає за зв'язок юзера з тенантом
+- НЕ відповідає за lifecycle провізіонування тенанта
 
-## Event Management Context
+## Контекст управління подіями
 
-### Entities
+### Сутності
 
-- Event (webinar, concert, competition)
+- Event (вебінар, концерт, змагання)
 - EventParticipation
 
-### Domain Concepts
+### Доменні концепції
 
-- attendance
-- places / scores
-- certificates / awards
+- відвідуваність
+- місця / результати
+- сертифікати / нагороди
 
-### Behaviors
+### Поведінка
 
-- create event
-- register
-- add link performance video/webinar
-- attend
-- mark attendance
-- assign place
-- send certificate
+- створення події
+- реєстрація
+- додавання посилання на відео виступу/вебінару
+- участь
+- відмітка відвідуваності
+- призначення місця
+- надсилання сертифіката
 
-### Ownership
+### Відповідальність
 
-- Owns attendance lifecycle
-- Owns event participation state
+- Відповідає за lifecycle відвідуваності
+- Відповідає за стан участі у події
 
-## Lesson Planning Context
+## Контекст планування уроків
 
-### Entities
+### Сутності
 
 - LessonPlan
 - LessonPlanAssignment
 
-### Behaviors
+### Поведінка
 
-- create plan
-- make template
-- create from template
-- assign plan to student
+- створення плану
+- створення шаблону
+- створення з шаблону
+- призначення плану учню
 
-### Ownership
+### Відповідальність
 
-- Owns lesson planning logic
-- Owns assignment of plans
+- Відповідає за логіку планування уроків
+- Відповідає за призначення планів
 
-## Reporting Context (Read Model)
+## Контекст звітності (Read Model)
 
-### Core Concept
+### Основна концепція
 
-- Report is **computed and persisted as an immutable snapshot**
+- Звіт **обчислюється та зберігається як незмінний знімок**
 
-### Inputs
+### Вхідні дані
 
-- EventParticipation (Event Context)
-- LessonPlanAssignment (Lesson Context)
+- EventParticipation (Контекст подій)
+- LessonPlanAssignment (Контекст уроків)
 
-### Behaviors
+### Поведінка
 
-- aggregate data
-- compute results
-- generate reports
-- combine event + lesson outcomes
-- produce grades and summaries
-- persist generated report snapshots
+- агрегація даних
+- обчислення результатів
+- генерація звітів
+- поєднання результатів подій та уроків
+- формування оцінок та підсумків
+- збереження згенерованих знімків звітів
 
-### Ownership
+### Відповідальність
 
-- Owns aggregation logic and persisted report snapshots
+- Відповідає за логіку агрегації та збережені знімки звітів
