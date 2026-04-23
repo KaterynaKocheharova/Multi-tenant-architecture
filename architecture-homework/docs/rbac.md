@@ -1,17 +1,50 @@
-<!-- EVENT LEVEL ACCESSS -->
-
 # RBAC
 
 Canonical authorization source: `docs/authorization-matrix.md`.
 If any conflict appears between this file and the matrix, the matrix wins.
 
-## Roles
+## Модель ролей
+
+У системі використовується не один плоский список ролей, а три рівні ролей. Ефективний доступ до endpoint-ів формується з урахуванням рівня платформи, ролі в межах тенанта та, за потреби, ролі в конкретному івенті.
+
+### 1. Platform roles
+
+Ці ролі зберігаються в `User.globalRole` і визначають доступ на рівні всієї платформи.
 
 - `SYSADMIN`
+- `MEMBER`
+
+`SYSADMIN` має платформені адміністративні права. `MEMBER` є базовою глобальною роллю для звичайного автентифікованого користувача.
+
+### 2. Tenant roles
+
+Ці ролі зберігаються через `Membership` + `MembershipRole` і діють у межах конкретної школи/тенанта.
+
 - `SCHOOL_ADMIN`
 - `TEACHER`
 - `STUDENT`
+
+Один користувач має не більше одного `Membership`, але може мати кілька tenant-ролей у межах цього membership.
+
+### 3. Event roles
+
+Ці ролі зберігаються в `EventParticipation.roleInEvent` і діють лише в межах конкретного івенту.
+
+- `PARTICIPANT`
+- `PERFORMER`
+- `SPEAKER`
+- `ORGANIZER`
 - `JURY`
+
+Event-role не замінює tenant-role. Наприклад, користувач може бути `TEACHER` у тенанті та `ORGANIZER` або `JURY` у конкретному івенті. Саме тому в доступах до івентів часто використовується комбінація RBAC + ABAC перевірок, а не лише перевірка однієї ролі.
+
+## Як читати доступи
+
+- Platform roles відповідають за глобальні адміністративні можливості та доступ до platform-wide endpoint-ів.
+- Tenant roles відповідають за доступ до ресурсів конкретної школи.
+- Event roles відповідають за дії в межах конкретного івенту, наприклад оцінювання або перегляд списку учасників.
+- Якщо endpoint у таблиці нижче вимагає `JURY`, це означає не окрему системну роль, а наявність відповідної event-role для конкретного івенту.
+- Остаточне рішення про доступ ухвалюється як комбінація `roles` + ABAC checks + RLS.
 
 ## Tenant Management
 
@@ -104,11 +137,24 @@ If any conflict appears between this file and the matrix, the matrix wins.
 
 ### RBAC
 
-В залежності від своєї ролі користувач може або не може виконувати певні дії.
-Під час запиту до бекенду у мідлварі перевірятиметься чи має поточний користувач ролі,
-які вимагаються для поточного ендпоїнту
+В залежності від своїх platform-, tenant- та event-ролей користувач може або не може виконувати певні дії.
+Під час запиту до бекенду у middleware перевіряється, чи має поточний користувач ролі,
+які вимагаються для поточного endpoint-а.
 
-Мідлвара `roles` і додається до кожного роуту. Для кожного ендпоїнту передається свій список дозволених ролей.
+Middleware `roles` додається до кожного роуту. Для кожного endpoint-а передається свій список дозволених effective roles.
+Для івентів доступ перевіряється у два кроки: спочатку базова роль, потім роль у конкретному івенті через `EventParticipation`.
+
+### Перевірка ролі в івенті (resource-scoped role check)
+
+Для endpoint-ів `events` і `event participation` роль `ORGANIZER`/`JURY` не повинна перевірятися як абстрактний ABAC predicate без даних.
+Перед допуском у handler middleware має:
+
+1. Отримати `eventId` з route params.
+2. Зчитати рядок участі користувача в івенті (`EventParticipation`) або дані організатора з `Event`.
+3. Перевірити `roleInEvent` для поточного `userId`.
+4. Пропустити далі лише якщо роль відповідає вимогам endpoint-а.
+
+Якщо запису участі немає, або роль не підходить, middleware повертає `403`.
 
 ### ABAC
 
@@ -121,6 +167,8 @@ If any conflict appears between this file and the matrix, the matrix wins.
 - `checks` - масив ABAC перевірок (функцій), які виконуються послідовно
 - кожна ABAC функція має структуру типу `check(ctx): boolean | Promise<boolean>`
 - `ctx` містить дані запиту req і айді юзера для проводження перевірок
+
+ABAC у цій моделі використовується для контекстних обмежень (`isSameTenant`, `isOwner`, `isAssignedTeacher`), але не як єдине джерело істини для визначення event-role.
 
 Приклад:
 
@@ -140,9 +188,9 @@ router.patch(
 - `isSameTenant(ctx)` - перевірка tenant межі
 - `isOwner(ctx)` - користувач є власником ресурсу
 - `isAssignedTeacher(ctx)` - teacher пов'язаний зі student
-- `isEventOrganizer(ctx)` - користувач організатор івенту
-- `isEventJury(ctx)` - користувач у складі журі івенту
 - `canViewGlobalOrTenantEvent(ctx)` - доступ до global або tenant event
+
+Перевірки `isEventOrganizer` та `isEventJury` виконуються як resource-scoped role check через lookup у `Event`/`EventParticipation` до входу в бізнес-логіку endpoint-а.
 
 RLS у БД залишається другим рівнем захисту але не замінює middleware-перевірки на API-рівні, адже не має сенсу виконувати логіку до запиту у базу даних, якщо вона його відхилить.
 
@@ -161,13 +209,13 @@ RLS у БД залишається другим рівнем захисту ал
 - Events:
   - `GET /events`: `canViewGlobalOrTenantEvent`
   - `GET /events/:id`: `canViewGlobalOrTenantEvent`
-  - `PATCH /events/:id`: `isEventOrganizer`
-  - `POST /events/add-jury-member`: `isEventOrganizer`
+  - `PATCH /events/:id`: event-role lookup (`ORGANIZER`)
+  - `POST /events/add-jury-member`: event-role lookup (`ORGANIZER`)
   - `POST /events/register`: `isAssignedTeacher` для student + `canViewGlobalOrTenantEvent`
-  - `GET /events/:id/participants`: `isEventOrganizer` або `isEventJury`
-  - `POST /events/:id/attendance`: `isEventOrganizer`
-  - `POST /events/:id/assign-place`: `isEventJury`
-  - `POST /events/:id/grade-performance`: `isEventJury`
+  - `GET /events/:id/participants`: event-role lookup (`ORGANIZER` або `JURY`)
+  - `POST /events/:id/attendance`: event-role lookup (`ORGANIZER`)
+  - `POST /events/:id/assign-place`: event-role lookup (`JURY`)
+  - `POST /events/:id/grade-performance`: event-role lookup (`JURY`)
 - Lesson Plans:
   - `POST /lesson-plans/:id/assignments`: `isAssignedTeacher`
 - Reports:
