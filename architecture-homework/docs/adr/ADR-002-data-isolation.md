@@ -2,12 +2,12 @@
 
 Система повинна ізолювати дані, що належать тенантам, а саме:
 
-1. Report читання та запис
-2. LessonPlan читання та запис
-3. MagicLink читання та запис
-4. LessonPlanAssignment читання та запис
-5. User читання та запис
-6. Event + EventParticipation (якщо isGlobal = false) читання та запис
+1. Report читання та запис.
+2. LessonPlan читання та запис.
+3. MagicLink читання та запис.
+4. LessonPlanAssignment читання та запис.
+5. User читання та запис.
+6. Event + EventParticipation (якщо isGlobal = false) читання та запис.
 
 Система дозволяє глобальний доступ до:
 
