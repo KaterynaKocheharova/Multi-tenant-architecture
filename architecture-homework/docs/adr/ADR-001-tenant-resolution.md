@@ -1,22 +1,22 @@
-## Context
+## Контекст
 
-The platform is multi-tenant and must guarantee that each request is executed in the correct tenant context.
+Платформа є мультитенантною і повинна гарантувати, що кожен запит виконується у правильному контексті тенанта щоб попередити витоки даних.
 
-## Decision
+## Рішення
 
-Adopt JWT-authenticated user resolution with server-authoritative tenant context:
+Використовувати JWT-автентифікацію для розпізнавання користувача з серверно-авторитетним контекстом тенанта:
 
-1. Extract and validate JWT.
-2. Read `userId` from token payload.
-3. Load user and active membership from DB and resolve tenant from user.
-4. Attach user to request object.
-5. Execute tenant-scoped DB logic only via `withTenantContext(...)`.
-6. Inside transaction set:
+1. Витягти та валідувати JWT.
+2. Прочитати `userId` з payload токена.
+3. Завантажити користувача та активне членство з БД і визначити тенанта з даних користувача.
+4. Прикріпити користувача до об'єкта запиту.
+5. Виконувати логіку БД у контексті тенанта лише через `withTenantContext(...)`.
+6. Всередині транзакції встановити:
    - `SET LOCAL app.current_tenant = <tenantId>`
    - `SET LOCAL app.current_global_role = <role>`
-7. Run all repository calls with the same transaction client.
+7. Виконувати всі виклики репозиторію з тим самим клієнтом транзакції.
 
-## Diagram
+## Діаграма
 
 ```mermaid
 sequenceDiagram
@@ -50,26 +50,26 @@ sequenceDiagram
 	end
 ```
 
-## Consequences
+## Наслідки
 
-### Positive
+### Позитивні
 
-- tenant context is resolved from DB state, not stale token claims
-- lower risk of cross-tenant leakage
-- consistent behavior across all modules as tenant context is derived in middleware
+- контекст тенанта визначається зі стану БД, а не зі застарілих даних токена
+- знижений ризик витоку між тенантами
+- узгоджена поведінка в усіх модулях, оскільки контекст тенанта визначається у middleware
 
-### Negative
+### Негативні
 
-- token theft risk: a stolen valid token can be replayed until it expires
-- revocation complexity: immediate logout or access removal is harder with stateless tokens
-- operational burden: key rotation and strict JWT validation configuration are mandatory
+- ризик крадіжки токена: вкрадений дійсний токен можна відтворити до його закінчення
+- складність відкликання: негайний вихід або скасування доступу складніше реалізувати зі stateless токенами
+- операційне навантаження: ротація ключів та сувора конфігурація валідації JWT є обов'язковими
 
-## Alternatives Considered
+## Розглянуті альтернативи
 
-- Put `tenantId` directly in JWT and use it as authoritative source.
-  Rejected: tenant switches/suspensions become harder to reflect immediately and stale token claims can diverge from DB membership.
+- Помістити `tenantId` безпосередньо в JWT і використовувати його як авторитетне джерело.
+  Відхилено: переключення/призупинення тенанта стає складніше відображати одразу, і застарілі дані токена можуть розходитися з членством у БД.
 
-- Pass `tenantId` from request metadata (`headers` or `req.body`) and trust the client-provided value.
-  Rejected: tenant context becomes user-input driven, increases tampering risk.
-- Keep server-side sessions and resolve tenant from session state instead of JWT claims.
-  Rejected: adds stateful session storage and invalidation complexity, and reduces horizontal scalability compared to stateless JWT-based resolution.
+- Передавати `tenantId` з метаданих запиту (`headers` або `req.body`) і довіряти значенню від клієнта.
+  Відхилено: контекст тенанта стає залежним від введення користувача, що збільшує ризик підробки.
+- Зберігати серверні сесії та визначати тенанта зі стану сесії замість даних JWT.
+  Відхилено: додає зберігання stateful сесій та складність їх інвалідації, а також знижує горизонтальну масштабованість порівняно зі stateless JWT-рішенням.

@@ -12,11 +12,10 @@
 8. Event
 9. EventParticipation
 10. CompetitionParticipation
-11. Award
-12. LessonPlan
-13. LessonPlanAssignment
-14. Report
-15. MagicLink
+11. LessonPlan
+12. LessonPlanAssignment
+13. Report
+14. MagicLink
 
 ## Tables
 
@@ -212,30 +211,6 @@ Attribution semantics:
 Validation rule:
 
 - participation must reference an Event where type = competition.
-
-### Award
-
-| Column              | Type        | Constraints                           |
-| ------------------- | ----------- | ------------------------------------- |
-| id                  | uuid        | PK                                    |
-| eventId             | uuid        | FK -> Event.id, not null              |
-| issuingTenantId     | uuid        | FK -> Tenant.id, not null             |
-| participantTenantId | uuid        | FK -> Tenant.id, not null             |
-| participantId       | uuid        | FK -> EventParticipation.id, not null |
-| title               | text        | not null                              |
-| s3Url               | text        | not null                              |
-| issuedAt            | timestamptz | not null                              |
-| metadata            | jsonb       | null                                  |
-| createdAt           | timestamptz | not null                              |
-
-Constraints:
-
-- unique(eventId, participantId)
-
-Attribution semantics:
-
-- `issuingTenantId`: tenant that issued the award.
-- `participantTenantId`: tenant of the awarded participant.
 
 ### LessonPlan
 

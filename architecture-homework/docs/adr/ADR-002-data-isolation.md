@@ -1,70 +1,69 @@
-## Title
+## Контекст
 
-Use "Share everything" approach with RLS
+Система повинна ізолювати дані, що належать тенантам, а саме:
 
-## Status
+1. Report читання та запис
+2. LessonPlan читання та запис
+3. MagicLink читання та запис
+4. LessonPlanAssignment читання та запис
+5. User читання та запис
+6. Event + EventParticipation (якщо isGlobal = false) читання та запис
 
-Accepted
+Система дозволяє глобальний доступ до:
 
-## Context
+1. TeacherProfile читання.
+2. StudentProfile читання.
+3. Event + EventParticipation (якщо isGlobal = true) читання, реєстрацію та оновлення.
 
-The system must isolate tenant-owned data while still supporting cross-tenant collaboration for global events.
+## Обмеження
 
-## Contraints
+- обмежений бюджет ($3000)
+- обмежений час розробки (3 місяці)
 
-- limited budget ($3000)
-- limited development time (3 months)
+## Рішення
 
-## Decision
+Використовувати спільну PostgreSQL з Row-Level Security як основним механізмом захисту.
 
-Use shared PostgreSQL with Row-Level Security as primary enforcement.
-
-1. Enable RLS on tenant-scoped tables and use `FORCE ROW LEVEL SECURITY`.
-2. Set transaction context per request:
+1. Увімкнути RLS на таблицях рівня тенанта та використовувати `FORCE ROW LEVEL SECURITY`
+2. Встановлювати контекст транзакції для кожного запиту:
    - `app.current_tenant`
    - `app.current_global_role`
-3. Use deny-by-default policy shape:
-   - `USING` for read/target row visibility
-   - `WITH CHECK` for insert/update row validity
-4. Add role-aware policy variants where sysadmin cross-tenant read is required.
-5. For mixed visibility tables (`event`, `event_participation`, `award`), split SELECT and write policies:
-   - **SELECT**: own-tenant rows OR `scope = 'GLOBAL'` rows (+ sysadmin override)
-   - **event writes**: restricted to the owning tenant only
-	- **participation and award writes**: allow cross-tenant writes when the referenced event has `scope = 'GLOBAL'`, enforced via `EXISTS (SELECT 1 FROM event WHERE scope = 'GLOBAL')` in `WITH CHECK`
-	- **attribution fields are explicit**: `event.organizingTenantId`, `event_participation.participantTenantId`, `event_participation.registeredByTenantId`, `award.issuingTenantId`, `award.participantTenantId`
+3. Використовувати політику "заборонено за замовчуванням":
+   - `USING` — для видимості рядків при читанні
+   - `WITH CHECK` — для перевірки рядків при оновленні
+4. Додати варіанти політик з урахуванням ролей там, де потрібне міжтенантне читання для sysadmin.
+5. Для таблиць із глобальною видимістю на основі поля isGlobal = true продумати динамічну політику
 
-## Why?
+## Чому?
 
-### 1. Product Requirements Fit
+### 1. Відповідність продуктовим вимогам
 
-The system requires some **cross-tenant features**: competitions and webinars
+Система вимагає певних **міжтенантних функцій**
 
-A shared database enables simple queries and avoids distributed system complexity.
-If we used multiple databases and need to fetch a specific event participants, we would need to list all dbs, conduct fetching queries for each of them, and finally merge results in application level. In out shared db case we fetch all data with a simple request.
+Якщо б ми використовували кілька баз даних і потрібно отримати учасників певної події, ми мали б перебирати всі БД, виконувати запити для кожної з них, об'єднувати результати на рівні застосунку. У нашому випадку зі спільною БД ми отримуємо всі дані одним запитом.
 
-### 2. Fast Development
+### 2. Швидка розробка
 
-- single schema
-- one migration pipeline
+- єдина схема
+- одна бд
+- один пайплайн міграцій
 
-### 3. Operational Simplicity
+### 3. Простота використання
 
-- centralized monitoring
-- simpler backups
-- easier maintenance
-- quick tenant onboarding
+- централізований моніторинг
+- простіші бекапи
+- легше обслуговування
+- швидке підключення нових тенантів
 
-### 4. Cost Efficiency
+### 4. Економічна ефективність
 
-- one database instance
-- efficient resource usage
-- no idle infrastructure per tenant (if we used multiple dbs, we would need to pay for each even if data is not used and activity is minimal)
+- відсутність необхідності платити за бд, якщо вона неактивна
 
-## Diagram
+## Діаграма
 
 ```mermaid
 flowchart TD
-	 A[Request arrives] --> B[Resolve tenant from JWT]
+	 A[Request arrives] --> B[Find user by id, get their tenant ]
 	 B --> C[BEGIN transaction]
 	 C --> D[SET LOCAL app.current_tenant]
 	 D --> E[SET LOCAL app.current_global_role]
@@ -89,35 +88,33 @@ flowchart TD
 	 L --> O
 ```
 
-## Consequences
+## Наслідки
 
-### Positive
+### Позитивні
 
-- database-enforced tenant boundaries
-- safer behavior when app-level filters are missing
-- supports global event collaboration without disabling isolation
+- межі між тенантами забезпечені на рівні БД
+- підтримує міжтенантну співпрацю для глобальних подій без вимкнення ізоляції для критичних даних
 
-### Negative
+### Негативні
 
-- policy management complexity increases
-- migration/testing must include policy verification
-- developers must always run tenant-scoped DB work in the context wrapper — without it, `current_setting('app.current_tenant', true)` returns `NULL`, so `USING` evaluates to false and reads return 0 rows silently, which might be hard to debug; `WITH CHECK` evaluates to false and writes are rejected with a policy violation error
+- зростає складність управління політиками, відсутня експертиза в їх використанні, що сповільнить розробку на перших етапах
+- розробники завжди повинні виконувати роботу з БД у контексті тенанта через обгортку, що дадаватиметься до кожного запиту `current_setting('app.current_tenant', true)`, що може створити незручності
 
-## Alternatives Considered
+## Розглянуті альтернативи
 
-1. Schema per tenant.
-   - Rejected: migration and operational difficulty, more complex cross-tenant query.
-   - Pros: stronger logical isolation than shared tables.
-   - Cons: complex migrations, difficult backups, poor ORM support (most ORMs assume a single schema), more complex cross-tenant queries, noisy neighbor problem still present at DB level.
+1. Окрема схема на тенанта.
+   - Відхилено: складність міграцій, більш складні міжтенантні запити.
+   - Плюси: сильніша логічна ізоляція, ніж у спільних таблицях.
+   - Мінуси: складні міграції, проблемні бекапи, погана підтримка ORM (більшість ORM припускають єдину схему), складніші міжтенантні запити, проблема «галасливого сусіда» все одно присутня на рівні БД.
 
-2. Database per tenant.
-   - Rejected: the same as "schema per tenant" but also much more difficult and not enough users for a single db instance (each school having 50 - 300 users, which is not enough to start a new db each time)
-   - Pros: maximum isolation, no noisy neighbor, popular with enterprise SaaS.
-   - Cons: high infrastructure complexity, very expensive (idle DB cost per tenant even at low activity), cross-tenant collaboration requires distributed queries or data duplication.
+2. Окрема база даних на тенанта.
+   - Відхилено: ті самі проблеми, що і з "окремою схемою", але ще складніше, і замало користувачів для окремого екземпляра БД (кожна школа має 50–300 користувачів, чого недостатньо для запуску нової БД щоразу)
+   - Плюси: максимальна ізоляція, відсутність «галасливого сусіда».
+   - Мінуси: дуже дорого, міжтенантна співпраця вимагає розподілених запитів.
 
-3. Application-only tenant filtering (no RLS).
-   - Rejected: insufficient safety against accidental leaks (developers skip where and data leakage occurs)
-   - Cons: one missed `where tenantId = ...` clause leaks data silently; no database-level backstop.
+3. Фільтрація тенантів лише на рівні застосунку (без RLS).
+   - Відхилено: недостатній захист від випадкових витоків (розробники пропускають where і відбувається витік даних)
+   - Мінуси: один пропущений `where tenantId = ...` призводить до тихого витоку даних; відсутній захист на рівні БД.
 
-4. Hybrid - decision based on the tier.
-   - Rejected: there is no plan for tiers, all schools are supposed to be equal. However, we might migrate to this partially if some tenants are very big, which is unlikely in the near future.
+4. Гібридний підхід — рішення залежно від тарифу.
+   - Відхилено: немає планів щодо тарифів, всі школи мають бути рівними. Проте, ми можемо частково мігрувати до цього підходу, якщо деякі тенанти стануть дуже великими, що малоймовірно найближчим часом.

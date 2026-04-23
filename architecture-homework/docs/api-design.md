@@ -1,3 +1,5 @@
+<!-- а також продумати як я обмежуватиму доступ до тенант -->
+
 ## All endpoints listing
 
 Authorization source of truth: `docs/authorization-matrix.md`.
