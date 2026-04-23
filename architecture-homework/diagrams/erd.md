@@ -1,8 +1,8 @@
-# ERD Diagrams
+# ERD-діаграми
 
-This document contains Mermaid ER diagrams based on the current data model in `docs/data-model.md`.
+Цей документ містить Mermaid ER-діаграми, побудовані на основі актуальної моделі даних з `docs/data-model.md`.
 
-## Full Overview
+## Повний огляд
 
 ```mermaid
 erDiagram
@@ -127,35 +127,35 @@ erDiagram
         generatedAt timestamptz
     }
 
-    USER ||--o| TEACHER_DETAILS : has
-    USER ||--o| STUDENT_DETAILS : has
-    USER ||--o| MEMBERSHIP : has
-    USER ||--o{ MAGIC_LINK : has
-    TENANT ||--o{ MEMBERSHIP : has
-    TENANT ||--o{ MAGIC_LINK : has
-    MEMBERSHIP ||--o{ MEMBERSHIP_ROLE : has
+    USER ||--o| TEACHER_DETAILS : має
+    USER ||--o| STUDENT_DETAILS : має
+    USER ||--o| MEMBERSHIP : має
+    USER ||--o{ MAGIC_LINK : має
+    TENANT ||--o{ MEMBERSHIP : має
+    TENANT ||--o{ MAGIC_LINK : має
+    MEMBERSHIP ||--o{ MEMBERSHIP_ROLE : має
 
-    TENANT ||--o{ TEACHER_STUDENT_ASSIGNMENT : has
-    USER ||--o{ TEACHER_STUDENT_ASSIGNMENT : references_user
+    TENANT ||--o{ TEACHER_STUDENT_ASSIGNMENT : має
+    USER ||--o{ TEACHER_STUDENT_ASSIGNMENT : посилання_на_користувача
 
-    TENANT ||--o{ EVENT : has
-    USER ||--o{ EVENT : references_user
+    TENANT ||--o{ EVENT : має
+    USER ||--o{ EVENT : посилання_на_користувача
 
-    EVENT ||--o{ EVENT_PARTICIPATION : has
-    USER ||--o{ EVENT_PARTICIPATION : has
-    EVENT_PARTICIPATION ||--|| COMPETITION_PARTICIPATION : has
+    EVENT ||--o{ EVENT_PARTICIPATION : має
+    USER ||--o{ EVENT_PARTICIPATION : має
+    EVENT_PARTICIPATION ||--|| COMPETITION_PARTICIPATION : має
 
-    TENANT ||--o{ LESSON_PLAN : has
-    USER ||--o{ LESSON_PLAN : has
-    LESSON_PLAN ||--o{ LESSON_PLAN_ASSIGNMENT : has
-    TENANT ||--o{ LESSON_PLAN_ASSIGNMENT : has
-    USER ||--o{ LESSON_PLAN_ASSIGNMENT : has
+    TENANT ||--o{ LESSON_PLAN : має
+    USER ||--o{ LESSON_PLAN : має
+    LESSON_PLAN ||--o{ LESSON_PLAN_ASSIGNMENT : має
+    TENANT ||--o{ LESSON_PLAN_ASSIGNMENT : має
+    USER ||--o{ LESSON_PLAN_ASSIGNMENT : має
 
-    TENANT ||--o{ REPORT : has
-    USER ||--o{ REPORT : references_user
+    TENANT ||--o{ REPORT : має
+    USER ||--o{ REPORT : посилання_на_користувача
 ```
 
-## Identity And Tenancy
+## Ідентифікація та тенанти
 
 ```mermaid
 erDiagram
@@ -209,16 +209,16 @@ erDiagram
         consumedAt timestamptz
     }
 
-    USER ||--o| TEACHER_DETAILS : has
-    USER ||--o| STUDENT_DETAILS : has
-    USER ||--o| MEMBERSHIP : has
-    USER ||--o{ MAGIC_LINK : has
-    TENANT ||--o{ MEMBERSHIP : has
-    TENANT ||--o{ MAGIC_LINK : has
-    MEMBERSHIP ||--o{ MEMBERSHIP_ROLE : has
+    USER ||--o| TEACHER_DETAILS : має
+    USER ||--o| STUDENT_DETAILS : має
+    USER ||--o| MEMBERSHIP : має
+    USER ||--o{ MAGIC_LINK : має
+    TENANT ||--o{ MEMBERSHIP : має
+    TENANT ||--o{ MAGIC_LINK : має
+    MEMBERSHIP ||--o{ MEMBERSHIP_ROLE : має
 ```
 
-## Events And Participation
+## Події та участь
 
 ```mermaid
 erDiagram
@@ -266,14 +266,14 @@ erDiagram
         updatedAt timestamptz
     }
 
-    TENANT ||--o{ EVENT : has
-    USER ||--o{ EVENT : references_user
-    EVENT ||--o{ EVENT_PARTICIPATION : has
-    USER ||--o{ EVENT_PARTICIPATION : has
-    EVENT_PARTICIPATION ||--|| COMPETITION_PARTICIPATION : has
+    TENANT ||--o{ EVENT : має
+    USER ||--o{ EVENT : посилання_на_користувача
+    EVENT ||--o{ EVENT_PARTICIPATION : має
+    USER ||--o{ EVENT_PARTICIPATION : має
+    EVENT_PARTICIPATION ||--|| COMPETITION_PARTICIPATION : має
 ```
 
-## Lesson Planning And Reports
+## Планування уроків та звітність
 
 ```mermaid
 erDiagram
@@ -327,13 +327,13 @@ erDiagram
         studentUserId uuid FK
     }
 
-    TENANT ||--o{ LESSON_PLAN : has
-    USER ||--o{ LESSON_PLAN : has
-    LESSON_PLAN ||--o{ LESSON_PLAN_ASSIGNMENT : has
-    TENANT ||--o{ LESSON_PLAN_ASSIGNMENT : has
-    USER ||--o{ LESSON_PLAN_ASSIGNMENT : has
-    TENANT ||--o{ TEACHER_STUDENT_ASSIGNMENT : has
-    USER ||--o{ TEACHER_STUDENT_ASSIGNMENT : references_user
-    TENANT ||--o{ REPORT : has
-    USER ||--o{ REPORT : references_user
+    TENANT ||--o{ LESSON_PLAN : має
+    USER ||--o{ LESSON_PLAN : має
+    LESSON_PLAN ||--o{ LESSON_PLAN_ASSIGNMENT : має
+    TENANT ||--o{ LESSON_PLAN_ASSIGNMENT : має
+    USER ||--o{ LESSON_PLAN_ASSIGNMENT : має
+    TENANT ||--o{ TEACHER_STUDENT_ASSIGNMENT : має
+    USER ||--o{ TEACHER_STUDENT_ASSIGNMENT : посилання_на_користувача
+    TENANT ||--o{ REPORT : має
+    USER ||--o{ REPORT : посилання_на_користувача
 ```
