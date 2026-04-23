@@ -37,7 +37,7 @@ erDiagram
     MEMBERSHIP {
         id uuid PK
         userId uuid FK
-        tenantId uuid FK
+        schoolId uuid FK
         status enum
     }
 
@@ -50,7 +50,7 @@ erDiagram
     MAGIC_LINK {
         id uuid PK
         userId uuid FK
-        tenantId uuid FK
+        schoolId uuid FK
         tokenHash text
         expiresAt timestamptz
         consumedAt timestamptz
@@ -58,7 +58,7 @@ erDiagram
 
     TEACHER_STUDENT_ASSIGNMENT {
         id uuid PK
-        tenantId uuid FK
+        schoolId uuid FK
         teacherUserId uuid FK
         studentUserId uuid FK
         status enum
@@ -67,7 +67,7 @@ erDiagram
     EVENT {
         id uuid PK
         scope enum
-        tenantId uuid FK
+        schoolId uuid FK
         type enum
         name text
         topic text
@@ -80,7 +80,7 @@ erDiagram
         id uuid PK
         eventId uuid FK
         participantUserId uuid FK
-        tenantId uuid FK
+        schoolId uuid FK
         roleInEvent enum
         attended boolean
     }
@@ -95,7 +95,7 @@ erDiagram
     AWARD {
         id uuid PK
         eventId uuid FK
-        tenantId uuid FK
+        schoolId uuid FK
         participantId uuid FK
         title text
         s3Url text
@@ -104,7 +104,7 @@ erDiagram
 
     LESSON_PLAN {
         id uuid PK
-        tenantId uuid FK
+        schoolId uuid FK
         teacherUserId uuid FK
         isTemplate boolean
         title text
@@ -113,7 +113,7 @@ erDiagram
     LESSON_PLAN_ASSIGNMENT {
         id uuid PK
         lessonPlanId uuid FK
-        tenantId uuid FK
+        schoolId uuid FK
         studentUserId uuid FK
         assignedDate date
         status enum
@@ -121,7 +121,7 @@ erDiagram
 
     REPORT {
         id uuid PK
-        tenantId uuid FK
+        schoolId uuid FK
         requestedByUserId uuid FK
         teacherUserId uuid FK
         periodStart date
@@ -194,7 +194,7 @@ erDiagram
     MEMBERSHIP {
         id uuid PK
         userId uuid FK
-        tenantId uuid FK
+        schoolId uuid FK
     }
 
     MEMBERSHIP_ROLE {
@@ -206,7 +206,7 @@ erDiagram
     MAGIC_LINK {
         id uuid PK
         userId uuid FK
-        tenantId uuid FK
+        schoolId uuid FK
         tokenHash text
     }
 
@@ -236,7 +236,7 @@ erDiagram
     EVENT {
         id uuid PK
         scope enum
-        tenantId uuid FK
+        schoolId uuid FK
         type enum
         name text
         videoUrl text
@@ -247,7 +247,7 @@ erDiagram
         id uuid PK
         eventId uuid FK
         participantUserId uuid FK
-        tenantId uuid FK
+        schoolId uuid FK
         roleInEvent enum
         attended boolean
     }
@@ -261,7 +261,7 @@ erDiagram
     AWARD {
         id uuid PK
         eventId uuid FK
-        tenantId uuid FK
+        schoolId uuid FK
         participantId uuid FK
         title text
         s3Url text
@@ -294,7 +294,7 @@ erDiagram
 
     LESSON_PLAN {
         id uuid PK
-        tenantId uuid FK
+        schoolId uuid FK
         teacherUserId uuid FK
         isTemplate boolean
         title text
@@ -303,7 +303,7 @@ erDiagram
     LESSON_PLAN_ASSIGNMENT {
         id uuid PK
         lessonPlanId uuid FK
-        tenantId uuid FK
+        schoolId uuid FK
         studentUserId uuid FK
         assignedDate date
         status enum
@@ -311,7 +311,7 @@ erDiagram
 
     REPORT {
         id uuid PK
-        tenantId uuid FK
+        schoolId uuid FK
         requestedByUserId uuid FK
         teacherUserId uuid FK
         periodStart date
@@ -321,7 +321,7 @@ erDiagram
 
     TEACHER_STUDENT_ASSIGNMENT {
         id uuid PK
-        tenantId uuid FK
+        schoolId uuid FK
         teacherUserId uuid FK
         studentUserId uuid FK
     }

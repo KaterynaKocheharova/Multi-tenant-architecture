@@ -78,7 +78,7 @@ Purpose: links user to exactly one tenant.
 | --------- | ----------------------- | ------------------------------- |
 | id        | uuid                    | PK                              |
 | userId    | uuid                    | FK -> User.id, unique, not null |
-| tenantId  | uuid                    | FK -> Tenant.id, not null       |
+| schoolId  | uuid                    | FK -> Tenant.id, not null       |
 | status    | enum(active, suspended) | not null default active         |
 | createdAt | timestamptz             | not null                        |
 | updatedAt | timestamptz             | not null                        |
@@ -112,7 +112,7 @@ Purpose: stores one-time passwordless authentication links.
 | ---------- | ----------- | ------------------------- |
 | id         | uuid        | PK                        |
 | userId     | uuid        | FK -> User.id, not null   |
-| tenantId   | uuid        | FK -> Tenant.id, not null |
+| schoolId   | uuid        | FK -> Tenant.id, not null |
 | tokenHash  | text        | unique, not null          |
 | expiresAt  | timestamptz | not null                  |
 | consumedAt | timestamptz | null                      |
@@ -131,7 +131,7 @@ Purpose: teacher to student mapping within one tenant.
 | Column        | Type                   | Constraints               |
 | ------------- | ---------------------- | ------------------------- |
 | id            | uuid                   | PK                        |
-| tenantId      | uuid                   | FK -> Tenant.id, not null |
+| schoolId      | uuid                   | FK -> Tenant.id, not null |
 | teacherUserId | uuid                   | FK -> User.id, not null   |
 | studentUserId | uuid                   | FK -> User.id, not null   |
 | status        | enum(active, inactive) | not null default active   |
@@ -140,7 +140,7 @@ Purpose: teacher to student mapping within one tenant.
 
 Constraints:
 
-- unique(tenantId, teacherUserId, studentUserId)
+- unique(schoolId, teacherUserId, studentUserId)
 - teacherUserId != studentUserId
 
 ### Event
@@ -149,8 +149,8 @@ Constraints:
 | ------------------ | ----------------------------------- | ------------------------- |
 | id                 | uuid                                | PK                        |
 | scope              | enum(TENANT, GLOBAL)                | not null                  |
-| tenantId           | uuid                                | FK -> Tenant.id, null     |
-| organizingTenantId | uuid                                | FK -> Tenant.id, not null |
+| schoolId           | uuid                                | FK -> Tenant.id, null     |
+| organizingschoolId | uuid                                | FK -> Tenant.id, not null |
 | type               | enum(webinar, concert, competition) | not null                  |
 | name               | text                                | not null                  |
 | topic              | text                                | null                      |
@@ -165,12 +165,12 @@ Constraints:
 Constraints:
 
 - check(endDate >= startDate)
-- check((scope = 'TENANT' and tenantId is not null) or (scope = 'GLOBAL' and tenantId is null))
+- check((scope = 'TENANT' and schoolId is not null) or (scope = 'GLOBAL' and schoolId is null))
 
 Attribution semantics:
 
-- `tenantId`: visibility owner for tenant-scoped events, null for global events.
-- `organizingTenantId`: tenant that created/owns organization narrative for the event.
+- `schoolId`: visibility owner for tenant-scoped events, null for global events.
+- `organizingschoolId`: tenant that created/owns organization narrative for the event.
 
 ### EventParticipation
 
@@ -179,8 +179,8 @@ Attribution semantics:
 | id                   | uuid                                             | PK                           |
 | eventId              | uuid                                             | FK -> Event.id, not null     |
 | participantUserId    | uuid                                             | FK -> User.id, not null      |
-| participantTenantId  | uuid                                             | FK -> Tenant.id, not null    |
-| registeredByTenantId | uuid                                             | FK -> Tenant.id, not null    |
+| participantschoolId  | uuid                                             | FK -> Tenant.id, not null    |
+| registeredByschoolId | uuid                                             | FK -> Tenant.id, not null    |
 | roleInEvent          | enum(participant, performer, speaker, organizer) | not null default participant |
 | attended             | boolean                                          | not null default false       |
 | attendanceMarkedAt   | timestamptz                                      | null                         |
@@ -194,8 +194,8 @@ Constraints:
 
 Attribution semantics:
 
-- `participantTenantId`: participant home tenant.
-- `registeredByTenantId`: tenant that performed the registration action.
+- `participantschoolId`: participant home tenant.
+- `registeredByschoolId`: tenant that performed the registration action.
 
 ### CompetitionParticipation
 
@@ -217,7 +217,7 @@ Validation rule:
 | Column        | Type        | Constraints               |
 | ------------- | ----------- | ------------------------- |
 | id            | uuid        | PK                        |
-| tenantId      | uuid        | FK -> Tenant.id, not null |
+| schoolId      | uuid        | FK -> Tenant.id, not null |
 | teacherUserId | uuid        | FK -> User.id, not null   |
 | isTemplate    | boolean     | not null default false    |
 | title         | text        | null                      |
@@ -233,7 +233,7 @@ Purpose: links a plan to a specific student and schedule.
 | ------------- | ----------------------------------- | ----------------------------- |
 | id            | uuid                                | PK                            |
 | lessonPlanId  | uuid                                | FK -> LessonPlan.id, not null |
-| tenantId      | uuid                                | FK -> Tenant.id, not null     |
+| schoolId      | uuid                                | FK -> Tenant.id, not null     |
 | studentUserId | uuid                                | FK -> User.id, not null       |
 | assignedDate  | date                                | not null                      |
 | status        | enum(planned, completed, cancelled) | not null default planned      |
@@ -250,7 +250,7 @@ Constraints:
 | Column            | Type                                 | Constraints               |
 | ----------------- | ------------------------------------ | ------------------------- |
 | id                | uuid                                 | PK                        |
-| tenantId          | uuid                                 | FK -> Tenant.id, not null |
+| schoolId          | uuid                                 | FK -> Tenant.id, not null |
 | requestedByUserId | uuid                                 | FK -> User.id, not null   |
 | teacherUserId     | uuid                                 | FK -> User.id, null       |
 | periodStart       | date                                 | not null                  |

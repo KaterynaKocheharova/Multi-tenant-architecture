@@ -29,7 +29,7 @@ sequenceDiagram
 
     alt token valid
         DB-->>M: not revoked
-        M-->>A: user attached (userId, tenantId)
+        M-->>A: user attached (userId, schoolId)
         A-->>F: 200 OK response
     else token invalid or revoked
         DB-->>M: revoked OR invalid

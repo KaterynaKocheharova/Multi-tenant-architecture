@@ -306,7 +306,7 @@ Response `201`:
 {
   "id": "11c96f9b-0d8d-45f2-a26d-5f8e14666ec2",
   "scope": "TENANT",
-  "tenantId": "9c926e8a-2e4e-4490-98a0-725d32ba1628",
+  "schoolId": "9c926e8a-2e4e-4490-98a0-725d32ba1628",
   "type": "webinar",
   "name": "Methodology Webinar",
   "topic": "Choir rehearsal techniques",
@@ -364,7 +364,7 @@ Response `201`:
   "id": "b76607e7-e5b1-49bc-8130-836b3d5d1ed7",
   "eventId": "4f2d6ce7-8d42-4d7e-8f4a-4e953d3f66b5",
   "participantUserId": "7777d9fb-8c37-4b12-b0b3-09f66dc34f7f",
-  "tenantId": "9c926e8a-2e4e-4490-98a0-725d32ba1628",
+  "schoolId": "9c926e8a-2e4e-4490-98a0-725d32ba1628",
   "roleInEvent": "performer",
   "attended": false,
   "notes": "solo piano"
@@ -373,7 +373,7 @@ Response `201`:
 
 Internal flow:
 
-1. Compare user.id === event.tenantId if event is tenant-scoped. Otherwise, proceed without this check.
+1. Compare user.id === event.schoolId if event is tenant-scoped. Otherwise, proceed without this check.
 2. Insert into `event_participation`.
 3. If competition, insert into `competition_participation` with null grade/place.
 4. Return participation data.

@@ -4,17 +4,17 @@
 
 ## Рішення
 
-Використовувати JWT-автентифікацію для розпізнавання користувача з серверно-авторитетним контекстом тенанта:
+Використовувати JWT-автентифікацію для розпізнавання користувача і його schoolId:
 
 1. Витягти та валідувати JWT.
 2. Прочитати `userId` з payload токена.
-3. Завантажити користувача та активне членство з БД і визначити тенанта з даних користувача.
+3. Завантажити користувача і визначити тенанта з даних.
 4. Прикріпити користувача до об'єкта запиту.
-5. Виконувати логіку БД у контексті тенанта лише через `withTenantContext(...)`.
-6. Всередині транзакції встановити:
-   - `SET LOCAL app.current_tenant = <tenantId>`
+5. Якщо реквест до ендпоїнта, де динамічним параметром є schoolId, у спеціально призначеній мідлварі зробити перевірку, чи користувач може робити такий реквест. Якщо динамічним параметром не є schoolId, а запит буде на отримання певних даних, то використовуються можливості рлс + фільтрація за schoolId.
+6. Виконувати логіку БД у контексті тенанта лише через `withTenantContext(...)`.
+7. Всередині транзакції встановити:
+   - `SET LOCAL app.current_tenant = <schoolId>`
    - `SET LOCAL app.current_global_role = <role>`
-7. Виконувати всі виклики репозиторію з тим самим клієнтом транзакції.
 
 ## Діаграма
 
@@ -24,6 +24,7 @@ sequenceDiagram
 	participant Client
 	participant API as Backend API
 	participant Auth as JWT Validator
+	participant MW as Tenant Middleware
 	participant DB as PostgreSQL
 
 	Client->>API: Request + JWT
@@ -33,16 +34,28 @@ sequenceDiagram
 	alt Invalid token or missing userId
 		API-->>Client: 401 Unauthorized
 	else Valid claims
-		API->>DB: Load user + tenant membership
-		DB-->>API: User and access result
+		API->>DB: Load user + resolve schoolId
+		DB-->>API: User record
 
-		alt Not authorized for tenant
-			API-->>Client: 403 Forbidden
-		else Authorized
+		alt schoolId is a dynamic route param
+			API->>MW: Check user membership for schoolId
+			alt User not member of tenant
+				MW-->>Client: 403 Forbidden
+			else User is member
+				MW-->>API: Access granted
+				API->>DB: BEGIN
+				API->>DB: SET LOCAL app.current_tenant = schoolId
+				API->>DB: SET LOCAL app.current_global_role
+				API->>DB: Tenant-scoped queries via tx
+				DB-->>API: Scoped rows
+				API->>DB: COMMIT
+				API-->>Client: 200 OK
+			end
+		else No schoolId route param
 			API->>DB: BEGIN
-			API->>DB: SET LOCAL app.current_tenant
+			API->>DB: SET LOCAL app.current_tenant = schoolId
 			API->>DB: SET LOCAL app.current_global_role
-			API->>DB: Tenant-scoped queries via tx
+			API->>DB: Query with RLS + schoolId filter via tx
 			DB-->>API: Scoped rows
 			API->>DB: COMMIT
 			API-->>Client: 200 OK
@@ -55,21 +68,19 @@ sequenceDiagram
 ### Позитивні
 
 - контекст тенанта визначається зі стану БД, а не зі застарілих даних токена
-- знижений ризик витоку між тенантами
-- узгоджена поведінка в усіх модулях, оскільки контекст тенанта визначається у middleware
+- знижений ризик витоку даних між тенантами, адже на кожному реквесті поряд з перевіркою токена буде перевірятися, чи може юзер отримати доступ до поточного ендпоїнту
 
 ### Негативні
 
-- ризик крадіжки токена: вкрадений дійсний токен можна відтворити до його закінчення
-- складність відкликання: негайний вихід або скасування доступу складніше реалізувати зі stateless токенами
-- операційне навантаження: ротація ключів та сувора конфігурація валідації JWT є обов'язковими
+- тільки ті що пов'язані з токеном - крадіжка токена спричинить витоки даних
 
 ## Розглянуті альтернативи
 
-- Помістити `tenantId` безпосередньо в JWT і використовувати його як авторитетне джерело.
+- Помістити `schoolId` безпосередньо в JWT і використовувати його як авторитетне джерело.
   Відхилено: переключення/призупинення тенанта стає складніше відображати одразу, і застарілі дані токена можуть розходитися з членством у БД.
 
-- Передавати `tenantId` з метаданих запиту (`headers` або `req.body`) і довіряти значенню від клієнта.
+- Передавати `schoolId` з метаданих запиту (`headers` або `req.body`) і довіряти значенню від клієнта.
   Відхилено: контекст тенанта стає залежним від введення користувача, що збільшує ризик підробки.
-- Зберігати серверні сесії та визначати тенанта зі стану сесії замість даних JWT.
-  Відхилено: додає зберігання stateful сесій та складність їх інвалідації, а також знижує горизонтальну масштабованість порівняно зі stateless JWT-рішенням.
+
+- Передавати `schoolId` у динамічному параметрі.
+  Відхилено: брудна юрл, яка завжди міститиме сегмент із даними, що ми легко отримуємо з бд.

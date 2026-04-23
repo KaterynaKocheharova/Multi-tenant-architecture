@@ -107,11 +107,11 @@ WITH CHECK (
 ```typescript
 async function withTenantContext<T>(
   prisma: PrismaClient,
-  tenantId: string,
+  schoolId: string,
   fn: (tx: Prisma.TransactionClient) => Promise<T>,
 ): Promise<T> {
   return prisma.$transaction(async (tx) => {
-    await tx.$executeRaw`SET LOCAL app.current_tenant = ${tenantId}`;
+    await tx.$executeRaw`SET LOCAL app.current_tenant = ${schoolId}`;
     return fn(tx);
   });
 }
