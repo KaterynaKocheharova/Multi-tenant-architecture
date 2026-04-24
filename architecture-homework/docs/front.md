@@ -1,6 +1,30 @@
+```mermaid
+```
 <!-- DOCS_NAV_START -->
 [Docs Home](README.md) | [API Design](api-design.md) | [Auth](auth.md) | [RBAC](rbac.md) | [Data Model](data-model.md) | [Security](security.md) | [Deployment](deployment.md) | [Containers](containers.md) | [Context](context.md) | [Frontend](front.md) | [NFR](nfr.md) | [Req-Res Propagation](req-res-propagation.md) | [Risks](risks.md)
 <!-- DOCS_NAV_END -->
+
+## Навігація в документі
+
+- [Tenant Resolution + Tenant-Scoped API Calls](#tenant-resolution-tenant-scoped-api-calls)
+- [Post-Login Redirect by Role](#post-login-redirect-by-role)
+- [Route Protection](#route-protection)
+- [Navigation Menu](#navigation-menu)
+  - [SYSADMIN](#sysadmin)
+  - [SCHOOL_ADMIN](#school_admin)
+  - [TEACHER](#teacher)
+- [Tenant-Aware Scoping](#tenant-aware-scoping)
+- [Access Token Lifecycle](#access-token-lifecycle)
+- [State management](#state-management)
+- [Api integration pattern](#api-integration-pattern)
+  - [Що робить request interceptor](#що-робить-request-interceptor)
+  - [Що робить response interceptor](#що-робить-response-interceptor)
+  - [Flow обробки відповіді](#flow-обробки-відповіді)
+- [Frontend Architecture (Mermaid)](#frontend-architecture-mermaid)
+
+<!-- DOCS_TOC_START -->
+<!-- DOCS_TOC_END -->
+
 
 ## Tenant Resolution + Tenant-Scoped API Calls
 
@@ -113,7 +137,6 @@ Axios використовуватимемо як HTTP-клієнт із цен�
 
 ## Frontend Architecture (Mermaid)
 
-```mermaid
 flowchart LR
    subgraph UI[Presentation Layer]
       Pages[Pages]
@@ -154,4 +177,3 @@ flowchart LR
    Refresh --> ResInt
    ResInt -->|refresh ok| REST
    ResInt -->|refresh failed| Zustand
-```

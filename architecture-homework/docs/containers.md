@@ -2,6 +2,23 @@
 [Docs Home](README.md) | [API Design](api-design.md) | [Auth](auth.md) | [RBAC](rbac.md) | [Data Model](data-model.md) | [Security](security.md) | [Deployment](deployment.md) | [Containers](containers.md) | [Context](context.md) | [Frontend](front.md) | [NFR](nfr.md) | [Req-Res Propagation](req-res-propagation.md) | [Risks](risks.md)
 <!-- DOCS_NAV_END -->
 
+## Навігація в документі
+
+- [Вебзастосунок (React)](#вебзастосунок-react)
+  - [Відповідальність](#відповідальність)
+- [Backend API (Node.js)](#backend-api-nodejs)
+  - [Відповідальність](#відповідальність)
+  - [Основні внутрішні модулі](#основні-внутрішні-модулі)
+  - [Архітектурний стиль](#архітектурний-стиль)
+- [База даних (PostgreSQL)](#база-даних-postgresql)
+  - [Відповідальність](#відповідальність)
+- [Комунікація контейнерів](#комунікація-контейнерів)
+- [Ключовий принцип дизайну](#ключовий-принцип-дизайну)
+
+<!-- DOCS_TOC_START -->
+<!-- DOCS_TOC_END -->
+
+
 # C4 Container
 
 Система складається з трьох основних контейнерів:

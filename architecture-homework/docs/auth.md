@@ -1,6 +1,25 @@
+```http
+```
+```ts
+```
+```http
+```
 <!-- DOCS_NAV_START -->
 [Docs Home](README.md) | [API Design](api-design.md) | [Auth](auth.md) | [RBAC](rbac.md) | [Data Model](data-model.md) | [Security](security.md) | [Deployment](deployment.md) | [Containers](containers.md) | [Context](context.md) | [Frontend](front.md) | [NFR](nfr.md) | [Req-Res Propagation](req-res-propagation.md) | [Risks](risks.md)
 <!-- DOCS_NAV_END -->
+
+## Навігація в документі
+
+- [Флоу](#флоу)
+  - [Налаштування refresh cookie](#налаштування-refresh-cookie)
+  - [На сервері:](#на-сервері)
+- [Валідація запитів через мідлвару](#валідація-запитів-через-мідлвару)
+- [Флоу рефрешу](#флоу-рефрешу)
+- [Logout](#logout)
+
+<!-- DOCS_TOC_START -->
+<!-- DOCS_TOC_END -->
+
 
 # Аутентифікація
 
@@ -20,15 +39,12 @@
 
 Приклад:
 
-```http
 Set-Cookie: refresh_token=<opaque>; HttpOnly; Secure; SameSite=Lax; Path=/auth/refresh
-```
 
 ### На сервері:
 
 - зберігається **лише хеш токена**
 
-```ts
 {
   id: uuid,
   userId: uuid,
@@ -36,7 +52,6 @@ Set-Cookie: refresh_token=<opaque>; HttpOnly; Secure; SameSite=Lax; Path=/auth/r
   issuedAt: Date,
   revoked: boolean
 }
-```
 
 3. Токени передаються:
    - `access_token` => через `Authorization` header (Bearer token)
@@ -66,9 +81,7 @@ Set-Cookie: refresh_token=<opaque>; HttpOnly; Secure; SameSite=Lax; Path=/auth/r
 
 - клієнт викликає:
 
-```http
 POST /auth/refresh
-```
 
 2. Браузер автоматично додає `refresh_token` cookie.
 

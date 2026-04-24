@@ -1,6 +1,28 @@
+```sql
+```
+```sql
+```
+```sql
+```
+```sql
+```
 <!-- DOCS_NAV_START -->
 [Docs Home](README.md) | [API Design](api-design.md) | [Auth](auth.md) | [RBAC](rbac.md) | [Data Model](data-model.md) | [Security](security.md) | [Deployment](deployment.md) | [Containers](containers.md) | [Context](context.md) | [Frontend](front.md) | [NFR](nfr.md) | [Req-Res Propagation](req-res-propagation.md) | [Risks](risks.md)
 <!-- DOCS_NAV_END -->
+
+## Навігація в документі
+
+- [1. Ризик noisy neighbor у database](#1-ризик-noisy-neighbor-у-database)
+- [2. Ризик витоку міжtenant-метаданих через GLOBAL events](#2-ризик-витоку-міжtenant-метаданих-через-global-events)
+- [3. Ризик складності політик бази даних для забезпечення ізоляції даних.](#3-ризик-складності-політик-бази-даних-для-забезпечення-ізоляції-даних)
+- [4. Додатковий час до реквесту від перевірки чи джейсон веб токен є у денай списку чи ні.](#4-додатковий-час-до-реквесту-від-перевірки-чи-джейсон-веб-токен-є-у-денай-списку-чи-ні)
+- [5. Ризик втрати accessToken при перезавантаженні сторінки (page reload)](#5-ризик-втрати-accesstoken-при-перезавантаженні-сторінки-page-reload)
+- [6. Ризик помилки в RLS policy (витік або блокування даних між тенантами)](#6-ризик-помилки-в-rls-policy-витік-або-блокування-даних-між-тенантами)
+- [7. Ризик викраденого JWT (stolen JWT)](#7-ризик-викраденого-jwt-stolen-jwt)
+
+<!-- DOCS_TOC_START -->
+<!-- DOCS_TOC_END -->
+
 
 <!-- LINK TO USER ON PARTICIPATION AND EVENT PARTICIPATION -->
 
@@ -32,33 +54,26 @@
 
 2. Створити SQL **view** `user_public_view` лише з безпечними колонками.
 
-```sql
 CREATE VIEW user_public_view
 WITH (security_barrier = true) AS
 SELECT
   id,
   full_name
 FROM "user";
-```
 
-```sql
 -- безпечно: поверне лише id і full_name, решта полів фізично недоступна
 SELECT * FROM user_public_view WHERE id = $1;
-```
 
 3. **Щоб це не можна було обійти через join/relation** (наприклад `event_participation -> user`), блокуємо доступ до сирої таблиці і даємо доступ тільки до safe-view:
 
-```sql
 -- роль API не має права читати базову таблицю user
 REVOKE SELECT ON "user" FROM app_api_role;
 
 -- але має право читати лише безпечний view
 GRANT SELECT ON user_public_view TO app_api_role;
-```
 
 Приклад безпечного join для `participants`:
 
-```sql
 SELECT
   ep.event_id,
   ep.participant_user_id,
@@ -67,7 +82,6 @@ SELECT
 FROM event_participation ep
 JOIN user_public_view upv ON upv.id = ep.participant_user_id
 WHERE ep.event_id = $1;
-```
 
 4. Для найбільшого контролю можна зробити ще `global_event_public_view`, де organizer уже приєднаний у безпечному вигляді, щоб клієнт і прикладний код узагалі не будували `join` до `user` самостійно.
 

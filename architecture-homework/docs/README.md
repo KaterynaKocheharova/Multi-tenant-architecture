@@ -2,6 +2,14 @@
 [Docs Home](README.md) | [API Design](api-design.md) | [Auth](auth.md) | [RBAC](rbac.md) | [Data Model](data-model.md) | [Security](security.md) | [Deployment](deployment.md) | [Containers](containers.md) | [Context](context.md) | [Frontend](front.md) | [NFR](nfr.md) | [Req-Res Propagation](req-res-propagation.md) | [Risks](risks.md)
 <!-- DOCS_NAV_END -->
 
+## Навігація в документі
+
+- [Початок документа](#)
+
+<!-- DOCS_TOC_START -->
+<!-- DOCS_TOC_END -->
+
+
 # ОПИС ПРОЄКТУ
 
 Вчителі музики в Україні часто витрачають значну кількість часу наприкінці навчального року та на кожних канікулах на виконання адміністративної роботи — документування планів уроків, перелік участі у концертах, змаганнях та вебінарах для складання звіту. Цей процес є повторюваним, трудомістким і часто неорганізованим, особливо з огляду на велику кількість заходів та позакласної діяльності в музичній освіті.

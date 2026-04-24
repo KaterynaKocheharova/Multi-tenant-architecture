@@ -1,6 +1,38 @@
+```
+```
+```
+```
+```
+```
+```json
+```
 <!-- DOCS_NAV_START -->
 [Docs Home](README.md) | [API Design](api-design.md) | [Auth](auth.md) | [RBAC](rbac.md) | [Data Model](data-model.md) | [Security](security.md) | [Deployment](deployment.md) | [Containers](containers.md) | [Context](context.md) | [Frontend](front.md) | [NFR](nfr.md) | [Req-Res Propagation](req-res-propagation.md) | [Risks](risks.md)
 <!-- DOCS_NAV_END -->
+
+## Навігація в документі
+
+- [RESILIENCY](#resiliency)
+  - [Fault Tolerance](#fault-tolerance)
+  - [Circuit Breaker Pattern](#circuit-breaker-pattern)
+  - [Error Handling](#error-handling)
+  - [Database Backup & Disaster Recovery](#database-backup-disaster-recovery)
+- [SCALABILITY](#scalability)
+  - [Horizontal Scaling](#horizontal-scaling)
+  - [Database](#database)
+- [OBSERVABILITY](#observability)
+  - [Logging Levels](#logging-levels)
+  - [Structured Logging Format](#structured-logging-format)
+  - [Metrics to Track](#metrics-to-track)
+  - [Alerting](#alerting)
+- [CAPACITY ESTIMATES](#capacity-estimates)
+  - [Цільові показники платформи](#цільові-показники-платформи)
+  - [Оцінка по шарах](#оцінка-по-шарах)
+  - [Тригери для перегляду архітектури](#тригери-для-перегляду-архітектури)
+
+<!-- DOCS_TOC_START -->
+<!-- DOCS_TOC_END -->
+
 
 # Non-Functional Requirements (NFR)
 
@@ -10,7 +42,6 @@
 
 Система повинна працювати зі зменшеною функціональністю, а не повністю падати:
 
-```
 Сценарій: Redis (cache) недоступний
 ❌ Система падає з 500 error
 ✅ Система запитує дані з БД (повільніше, але працює)
@@ -22,13 +53,11 @@
 Сценарій: One API server упав
 ❌ Load balancer розуміє, що 50% servers down
 ✅ Load balancer відправляє запити на інші 3 servers
-```
 
 ### Circuit Breaker Pattern
 
 Для запобігання "crashing cascade" при failure зовнішніх сервісів:
 
-```
 Стани:
 CLOSED (нормально): запити проходять
   → Якщо помилки → перехід в OPEN
@@ -46,7 +75,6 @@ HALF_OPEN (тестування): дозволити 1 запит
 - Не намагатися відправити email наступні 5 хвилин
 - Після 5 хвилин: HALF_OPEN, спробувати знову
 - Якщо email успішно відправлений: повернути в CLOSED
-```
 
 ### Error Handling
 
@@ -84,17 +112,14 @@ HALF_OPEN (тестування): дозволити 1 запит
 
 ### Logging Levels
 
-```
 DEBUG: Detailed info (variable values, loop iterations) - DEV only
 INFO: General flow (user login, API request started)
 WARN: Unexpected but recovered (retry #2, low disk space)
 ERROR: Unexpected situation (API request failed, auth denied)
 FATAL: System cannot continue (database down, out of memory)
-```
 
 ### Structured Logging Format
 
-```json
 {
   "timestamp": "2026-04-19T10:30:45Z",
   "level": "ERROR",
@@ -106,7 +131,6 @@ FATAL: System cannot continue (database down, out of memory)
   "duration_ms": 5000,
   "traceId": "xyz123"
 }
-```
 
 ### Metrics to Track
 

@@ -2,6 +2,34 @@
 [Docs Home](README.md) | [API Design](api-design.md) | [Auth](auth.md) | [RBAC](rbac.md) | [Data Model](data-model.md) | [Security](security.md) | [Deployment](deployment.md) | [Containers](containers.md) | [Context](context.md) | [Frontend](front.md) | [NFR](nfr.md) | [Req-Res Propagation](req-res-propagation.md) | [Risks](risks.md)
 <!-- DOCS_NAV_END -->
 
+## Навігація в документі
+
+- [Перелік сутностей](#перелік-сутностей)
+- [Таблиці](#таблиці)
+- [Контекст управління тенантами](#контекст-управління-тенантами)
+  - [Tenant](#tenant)
+- [Контекст ідентифікації](#контекст-ідентифікації)
+  - [User](#user)
+  - [TeacherDetails](#teacherdetails)
+  - [StudentDetails](#studentdetails)
+  - [TeacherStudentAssignment](#teacherstudentassignment)
+  - [Membership](#membership)
+  - [MembershipRole](#membershiprole)
+  - [MagicLink](#magiclink)
+- [Контекст управління подіями](#контекст-управління-подіями)
+  - [Event](#event)
+  - [EventParticipation](#eventparticipation)
+  - [CompetitionParticipation](#competitionparticipation)
+- [Контекст планування уроків](#контекст-планування-уроків)
+  - [LessonPlan](#lessonplan)
+  - [LessonPlanAssignment](#lessonplanassignment)
+- [Контекст звітності](#контекст-звітності)
+  - [Report](#report)
+
+<!-- DOCS_TOC_START -->
+<!-- DOCS_TOC_END -->
+
+
 # Модель даних
 
 ## Перелік сутностей

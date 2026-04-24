@@ -1,6 +1,32 @@
+```ts
+```
 <!-- DOCS_NAV_START -->
 [Docs Home](README.md) | [API Design](api-design.md) | [Auth](auth.md) | [RBAC](rbac.md) | [Data Model](data-model.md) | [Security](security.md) | [Deployment](deployment.md) | [Containers](containers.md) | [Context](context.md) | [Frontend](front.md) | [NFR](nfr.md) | [Req-Res Propagation](req-res-propagation.md) | [Risks](risks.md)
 <!-- DOCS_NAV_END -->
+
+## Навігація в документі
+
+- [Модель ролей](#модель-ролей)
+  - [1. Platform roles](#1-platform-roles)
+  - [2. Tenant roles](#2-tenant-roles)
+  - [3. Event roles](#3-event-roles)
+- [Як читати доступи](#як-читати-доступи)
+- [Tenant Management](#tenant-management)
+- [Authentication](#authentication)
+- [Teachers](#teachers)
+- [Students](#students)
+- [Events](#events)
+- [Lesson Plans](#lesson-plans)
+- [Reports](#reports)
+  - [RBAC](#rbac)
+  - [Перевірка ролі в івенті (resource-scoped role check)](#перевірка-ролі-в-івенті-resource-scoped-role-check)
+  - [ABAC](#abac)
+- [Приклади:](#приклади)
+  - [ABAC перевірки](#abac-перевірки)
+
+<!-- DOCS_TOC_START -->
+<!-- DOCS_TOC_END -->
+
 
 # RBAC
 
@@ -156,7 +182,6 @@ ABAC у цій моделі використовується для обмеже
 
 Приклад:
 
-```ts
 router.patch(
   "/students/:userId",
   authorize({
@@ -165,7 +190,6 @@ router.patch(
   }),
   handler,
 );
-```
 
 ### ABAC перевірки
 
