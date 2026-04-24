@@ -1,23 +1,23 @@
-# 🔐 Аутентифікація
+# Аутентифікація
 
 ## Флоу
 
 1. Користувач проходить автентифікацію через magic link.
 2. Сервер видає:
-   - `access_token` (короткоживучий JWT) - має `userId`,`jti`.
+   - `access_token` (короткоживучий JWT) - має `userId`,`jti` - ідентифікатор токена.
    - `refresh_token` cookie (довгоживучий токен сесії)
 
-### Нормативна конфігурація refresh cookie (single source)
+### Налаштування refresh cookie
 
 - `HttpOnly`
 - `Secure`
 - `SameSite=Lax`
-- `Path=/auth`
+- `Path=/auth/refresh`
 
 Приклад:
 
 ```http
-Set-Cookie: refresh_token=<opaque>; HttpOnly; Secure; SameSite=Lax; Path=/auth
+Set-Cookie: refresh_token=<opaque>; HttpOnly; Secure; SameSite=Lax; Path=/auth/refresh
 ```
 
 ### На сервері:
@@ -56,7 +56,7 @@ Set-Cookie: refresh_token=<opaque>; HttpOnly; Secure; SameSite=Lax; Path=/auth
 - додається `user` до `request`
 - запит продовжується
 
-## 🔄 Флоу рефрешу
+## Флоу рефрешу
 
 1. Якщо API повертає `401 Unauthorized`:
 
@@ -90,9 +90,7 @@ POST /auth/refresh
 - оновлює `access_token` у памʼяті
 - повторює початковий запит
 
----
-
-## 🚪 Logout
+## Logout
 
 1. Клієнт викликає `/auth/logout`
 2. Сервер:
@@ -105,7 +103,3 @@ revoked_tokens
 
 - jti: string
 - revokedAt: Date
-
-```
-
-```
