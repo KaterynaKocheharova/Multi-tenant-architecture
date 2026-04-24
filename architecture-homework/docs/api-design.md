@@ -1,76 +1,68 @@
-<!-- CONNECT WITH RBAC - ABAC -->
+## Перелік усіх ендпоїнтів
 
-<!-- а також продумати як я обмежуватиму доступ до тенант -->
+### Керування тенантами
 
-## All endpoints listing
-
-Authorization source of truth: `docs/authorization-matrix.md`.
-
-### Tenant Management
-
-- `POST /tenants` - sysadmin creates a tenant + school admin in one go (fills in their intial name and password)
+- `POST /tenants` - sysadmin створює tenant + school admin за один крок
 - `GET /tenants`
 - `GET /tenants/:id`
 - `PATCH /tenants/:id/status`
 
-### Auth
+### Автентифікація
 
-- `POST /auth/login` - password validation + request magic link
-- `POST /auth/verify-magic-link` - real login
+- `POST /auth/login` - валідація пароля + запит magic link
+- `POST /auth/verify-magic-link` - реальний логін
 - `POST /auth/refresh`
 - `POST /auth/logout`
-- `GET /auth/me`
 - `POST /auth/change-password`
 
-### Identity and Membership
+### Ідентичність і membership
 
-- `GET /users/all` - sysadmin sees all with filters
-- `GET /users/` - endpoint for school admins, they only see users of their tenant
-- `POST /users` - school admin creates a user (teacher or student), memebership and memebershipRole in one go
+- `GET /users`
+- `POST /users` - school admin створює користувача (teacher або student), membership і membershipRole за один крок
+- `GET /users/me`
 
 ### Teacher
 
-- `GET /teachers/:userId` - teacher or schooladmin can fetch this data
-- `PATCH /teachers/:userId` - teacher or shooladmin can edit
+- `GET /teachers/:userId`
+- `PATCH /teachers/:userId`
 
 #### Student
 
-- `POST /students` - teacher creates a student and they're automatically linked in teacher_student_assignment
-- `GET /students/:userId` - teacher or schooladmin can fetch
-- `PATCH /students/:userId` - teacher or shooladmin can edit
+- `POST /students` - teacher створює студента, і вони автоматично прив'язуються в teacher_student_assignment
+- `GET /students/:userId`
+- `PATCH /students/:userId`
 
-### Events
+### Події
 
-- `GET /events` - school admin sees events of their tenant + global ones
+- `GET /events`
 - `GET /events/:id`
-- `POST /events` - create an event
-- `POST /events/add-jury-member` - a new jury memeber membership_role row is created, a row in event_jury is created
-- `PATCH /events/:id` - update an event (organizer only)
-- `POST /events/register` - participation is created here
+- `POST /events`
+- `POST /events/:id/add-jury-member`
+- `PATCH /events/:id`
+- `POST /events/:id/register`
 - `GET /events/:id/participants`
-- `POST /events/:id/attendance` - mark attendance (called for webinars)
-- `POST /events/request-video-upload`
-- `POST /events/complete-upload`
-- `POST /events/assign-place` - for competitions
-- `POST /events/grade-performance` - for competitions
+- `POST /events/webinars/:id/attendance` - відмітити відвідування (викликається для вебінарів)
+- `POST /events/:id/request-video-upload` - це коли ми хочемо завантажити відео і просимо у сервера presignedUrl
+- `POST /events/competition/:id/assign-place`
+- `POST /events/competition//:id/grade-performance`
 
-### Lesson Plans
+### Плани уроків
 
 - `GET /lesson-plans`
 - `POST /lesson-plans`
 - `GET /lesson-plans/:id`
 - `PATCH /lesson-plans/:id`
 - `POST /lesson-plans/:id/create-from-template`
-- `POST /lesson-plans/:id/assignments` - links a lesson plan to a student
+- `POST /lesson-plans/:id/assignments` - прив'язує план уроку до студента
 
-### Reports
+### Звіти
 
 - `POST /reports`
 - `GET /reports`
 - `GET /reports/:id`
 - `PATCH /reports/:id`
 
-## Global Endpoint Schema
+## Глобальна схема ендпоїнтів
 
 ```mermaid
 flowchart TB
@@ -86,14 +78,13 @@ flowchart TB
     A2[POST /auth/verify-magic-link]
     A3[POST /auth/refresh]
     A4[POST /auth/logout]
-    A5[GET /auth/me]
-    A6[POST /auth/change-password]
+    A5[POST /auth/change-password]
   end
 
   subgraph IdentityAndMembership
-    I1[GET /users/all]
-    I2[GET /users]
-    I3[POST /users]
+    I1[GET /users]
+    I2[POST /users]
+    I3[GET /users/me]
   end
 
   subgraph Teacher
@@ -111,15 +102,14 @@ flowchart TB
     E1[GET /events]
     E2[GET /events/:id]
     E3[POST /events]
-    E4[POST /events/add-jury-member]
+    E4[POST /events/:id/add-jury-member]
     E5[PATCH /events/:id]
-    E6[POST /events/register]
+    E6[POST /events/:id/register]
     E7[GET /events/:id/participants]
-    E8[POST /events/:id/attendance]
-    E9[POST /events/request-video-upload]
-    E10[POST /events/complete-upload]
-    E11[POST /events/assign-place]
-    E12[POST /events/grade-performance]
+    E8[POST /events/webinars/:id/attendance]
+    E9[POST /events/:id/request-video-upload]
+    E10[POST /events/competition/:id/assign-place]
+    E11[POST /events/competition//:id/grade-performance]
   end
 
   subgraph LessonPlans
@@ -139,20 +129,18 @@ flowchart TB
   end
 ```
 
-## 8 ENDPOINTS BREAKDOWNS
+## 9 ДЕТАЛЬНИХ ОПИСІВ ЕНДПОЇНТІВ
 
-## TENANT MANAGEMENT
+## КЕРУВАННЯ ТЕНАНТАМИ
 
-Access rules:
+Правила доступу:
 
-- Required auth: yes
-- Authorization contract: see `docs/authorization-matrix.md`
+- Обов'язкова автентифікація
+- Роль `SYSADMIN`
 
 ### 1. POST /tenants
 
-Creates a new tenant (school).
-
-Request body:
+Створює новий tenant (школу).
 
 ```json
 {
@@ -165,7 +153,7 @@ Request body:
 }
 ```
 
-Response `201`:
+Відповідь `201`:
 
 ```json
 {
@@ -176,20 +164,20 @@ Response `201`:
 }
 ```
 
-Internal flow:
+Внутрішній потік:
 
-1. `TenantManagementModule.SchoolService` validates caller is Sysadmin.
-2. Create row in `tenant` (`status=active`).
-3. Hash `initialAdmin.password` using strong password hashing algorithm (`argon2id` or `bcrypt`).
-4. Create `user` row from `initialAdmin.fullName` + `initialAdmin.email`, storing `passwordHash`.
-5. Create `membership` row linking new admin user to the new tenant.
-6. Create `membership_role` with `schoolAdmin`.
-7. Trigger magic-link onboarding email for `initialAdmin.email` (non-blocking side effect).
-8. Return data.
-9. User clicks magic link in the email and gets redirected to their page.
-10. They can change their password right now.
+1. Автентифікація та авторизація.
+2. Створюється рядок у `tenant` (`status=active`).
+3. `initialAdmin.password` хешується за допомогою алгоритму хешування паролів `bcrypt`.
+4. Створюється рядок `user` з `initialAdmin.fullName` + `initialAdmin.email`, зберігається `passwordHash`.
+5. Створюється рядок `membership`, що пов'язує нового admin-користувача з новим tenant.
+6. Створюється `membership_role` із роллю `schoolAdmin`.
+7. Ініціюється onboarding email з magic link для `initialAdmin.email`.
+8. Повертаються дані.
+9. Користувач натискає magic link в email і переходить на свою сторінку.
+10. Вони можуть одразу змінити свій пароль.
 
-Sequence diagram:
+Діаграма послідовності:
 
 ```mermaid
 sequenceDiagram
@@ -209,18 +197,16 @@ sequenceDiagram
   API-->>SA: 201 Created (tenant metadata)
 ```
 
-## IDENTITY AND MEMBERSHIP
+## ІДЕНТИЧНІСТЬ
 
 ### 2. POST /users
 
-Creates a platform user identity (teacher or student).
+Створює teacher або student.
 
-Auth and roles:
+Автентифікація та ролі:
 
-- Required auth: yes
-- Authorization contract: see `docs/authorization-matrix.md`
-
-Request body:
+- Обов'язкова автентифікація: так
+- Роль `SCHOOL ADMIN`
 
 ```json
 {
@@ -232,7 +218,7 @@ Request body:
 }
 ```
 
-Response `201`:
+Відповідь `201`:
 
 ```json
 {
@@ -245,16 +231,13 @@ Response `201`:
 }
 ```
 
-Internal flow:
+1. Перевіряється унікальність email: якщо email існує, повертається "Conflict".
+2. Зберігається хеш пароля.
+3. Створюються user + membership + membership role.
+4. Новому користувачу надсилається magic link.
+5. Новий користувач натискає magic link. Тепер він може бачити свій профіль і змінити пароль.
 
-1. Validate uniqueness by email: if email exists, return "Conflict".
-2. Save password hash.
-3. Create user + membership + membership role.
-4. Send magic link to a new user.
-5. Return created identity.
-6. The new user clicks the magic link. They can now see their profile and can change their password.
-
-Sequence diagram:
+Діаграма послідовності:
 
 ```mermaid
 sequenceDiagram
@@ -277,18 +260,16 @@ sequenceDiagram
   end
 ```
 
-## EVENTS
+## ПОДІЇ
 
 ### 3. POST /events
 
-Creates an event (`webinar`, `concert`, `competition`).
+Створює подію (`webinar`, `concert`, `competition`).
 
-Auth and roles:
+Автентифікація та ролі:
 
-- Required auth: yes
-- Authorization contract: see `docs/authorization-matrix.md`
-
-Request body:
+- Обов'язкова автентифікація
+- Роль `Teacher`, `School admin`
 
 ```json
 {
@@ -302,7 +283,7 @@ Request body:
 }
 ```
 
-Response `201`:
+Відповідь `201`:
 
 ```json
 {
@@ -319,12 +300,12 @@ Response `201`:
 }
 ```
 
-Internal flow:
+Внутрішній потік:
 
-1. Insert row into `event` with organizer IDs and other input data.
-2. Return created event.
+1. Вставляється рядок у `event` з ID організатора та іншими вхідними даними.
+2. Повертається створена подія.
 
-Sequence diagram:
+Діаграма послідовності:
 
 ```mermaid
 sequenceDiagram
@@ -333,22 +314,22 @@ sequenceDiagram
   participant DB as PostgreSQL
 
   User->>API: POST /events
-  API->>DB: Authorize role + tenant scope
+  API->>DB: Authorize role
   API->>DB: INSERT event
   DB-->>API: event row
   API-->>User: 201 Created (event)
 ```
 
-### 4. POST /events/register
+### 4. POST /events/:id/register
 
-Registers participant in event.
+Реєструє учасника на подію.
 
-Auth and roles:
+Автентифікація та ролі:
 
-- Required auth: yes
-- Authorization contract: see `docs/authorization-matrix.md`
+- Обов'язкова автентифікація
+- Роль `Teacher`
 
-Request body:
+Тіло запиту:
 
 ```json
 {
@@ -359,7 +340,7 @@ Request body:
 }
 ```
 
-Response `201`:
+Відповідь `201`:
 
 ```json
 {
@@ -373,14 +354,14 @@ Response `201`:
 }
 ```
 
-Internal flow:
+Внутрішній потік:
 
-1. Compare user.id === event.schoolId if event is tenant-scoped. Otherwise, proceed without this check.
-2. Insert into `event_participation`.
-3. If competition, insert into `competition_participation` with null grade/place.
-4. Return participation data.
+1. Авторизація + додатковий чек на user.schoolId === event.schoolId (у спеціальній мідлварі, див. rbac.md), якщо подія має tenant-скоуп. Інакше продовжується без цієї перевірки.
+2. Вставка у `event_participation`.
+3. Якщо це конкурс, вставка у `competition_participation` з null grade/place.
+4. Повертаються дані участі.
 
-Sequence diagram:
+Діаграма послідовності:
 
 ```mermaid
 sequenceDiagram
@@ -388,7 +369,7 @@ sequenceDiagram
   participant API as Backend API
   participant DB as PostgreSQL
 
-  User->>API: POST /events/register
+  User->>API: POST /events/:id/register
   API->>DB: Load event and validate tenant access
   API->>DB: INSERT event_participation
   alt Event type is competition
@@ -397,16 +378,12 @@ sequenceDiagram
   API-->>User: 201 Created (participation)
 ```
 
-### 5. POST /events/:id/attendance
+### 5. POST /events/webinars/:id/attendance
 
-Marks participant attendance (called for webinars directly, for competitions and cocerts participation is marked when videos uploaded).
+Автентифікація та ролі:
 
-Auth and roles:
-
-- Required auth: yes
-- Authorization contract: see `docs/authorization-matrix.md`
-
-Request body:
+- Обов'язкова автентифікація
+- Роль `Organizer`
 
 ```json
 {
@@ -416,13 +393,13 @@ Request body:
 }
 ```
 
-Internal flow:
+Внутрішній потік:
 
-1. Authorize user (check the role)
-2. Update `attended`, `attendanceMarkedAt`, `notes`.
-3. Return updated participation.
+1. Авторизувати користувача.
+2. Оновити `attended`, `attendanceMarkedAt`, `notes`.
+3. Повернути оновлену участь.
 
-Sequence diagram:
+Діаграма послідовності:
 
 ```mermaid
 sequenceDiagram
@@ -430,22 +407,22 @@ sequenceDiagram
   participant API as Backend API
   participant DB as PostgreSQL
 
-  Jury->>API: POST /events/:id/attendance
+  Jury->>API: POST /events/webinars/:id/attendance
   API->>DB: Verify caller role for event
   API->>DB: UPDATE event_participation(attended, attendanceMarkedAt, notes)
   API-->>Jury: 200 OK (updated participation)
 ```
 
-### 6. POST /events/request-video-upload
+### 6. POST /events/:id/request-video-upload
 
-Step 1: request a one-time presigned upload URL for event video.
+Крок 1: запит одноразового presigned URL для завантаження відео події.
 
-Auth and roles:
+Автентифікація та ролі:
 
-- Required auth: yes
-- Authorization contract: see `docs/authorization-matrix.md`
+- Обов'язкова автентифікація
+- Роль `Participant`, `Organizer`
 
-Request body:
+Тіло запиту:
 
 ```json
 {
@@ -457,7 +434,7 @@ Request body:
 }
 ```
 
-Response `200`:
+Відповідь `200`:
 
 ```json
 {
@@ -468,17 +445,17 @@ Response `200`:
 }
 ```
 
-Internal flow:
+Внутрішній потік:
 
-1. Authenticate and authorize user for the specific event
-2. Validate file constraints (type, size)
-3. Retrieve event metadata (e.g., type)
-4. Generate a structured fileKey based on key info (event type, participantId, organizerId etc,)
-5. Backend creates a presigned PUT URL for Amazon S3
-6. Return uploadUrl and fileKey to client
-7. Client uploads file directly to S3
+1. Авторизація
+2. Перевірити обмеження файлу (тип, розмір)
+3. Отримати метадані події (наприклад, тип)
+4. Згенерувати структурований fileKey на основі ключової інформації (тип події, participantId, organizerId тощо)
+5. Бекенд створює presigned PUT URL для Amazon S3
+6. Повернути uploadUrl і fileKey клієнту
+7. Клієнт завантажує файл напряму в S3
 
-Sequence diagram:
+Діаграма послідовності:
 
 ```mermaid
 sequenceDiagram
@@ -486,7 +463,7 @@ sequenceDiagram
   participant API as Backend API
   participant S3 as Amazon S3
 
-  FE->>API: POST /events/request-video-upload
+  FE->>API: POST /events/:id/request-video-upload
   API->>API: Validate role + file constraints
   API->>S3: Create presigned PUT URL
   S3-->>API: uploadUrl + fileKey
@@ -495,70 +472,64 @@ sequenceDiagram
   S3-->>FE: 200 Upload complete
 ```
 
-### 7. POST /events/complete-upload
+### 7. POST /events/:id/add-jury-member
 
-Step 2: confirm upload and persist event video reference.
+Додає члена журі до події.
 
-Auth and roles:
+Автентифікація та ролі:
 
-- Required auth: yes
-- Authorization contract: see `docs/authorization-matrix.md`
+- Обов'язкова автентифікація
+- Роль `Organizer`
 
-Request body:
+Тіло запиту:
+
+```json
+{
+  "juryUserId": "3c89e6e0-1886-4ff7-88fd-bc45d0e1a0da",
+  "role": "jury"
+}
+```
+
+Відповідь `200`:
 
 ```json
 {
   "eventId": "11c96f9b-0d8d-45f2-a26d-5f8e14666ec2",
-  "fileKey": "events/11c96f9b-0d8d-45f2-a26d-5f8e14666ec2/webinar-2026-04-20.mp4",
-  "videoUrl": "https://cdn.example.com/events/11c96f9b-0d8d-45f2-a26d-5f8e14666ec2/webinar-2026-04-20.mp4"
+  "juryUserId": "3c89e6e0-1886-4ff7-88fd-bc45d0e1a0da",
+  "membershipRole": "jury",
+  "addedAt": "2026-04-20T17:00:00Z"
 }
 ```
 
-Response `200`:
+Внутрішній потік:
 
-```json
-{
-  "eventId": "11c96f9b-0d8d-45f2-a26d-5f8e14666ec2",
-  "videoUrl": "https://cdn.example.com/events/11c96f9b-0d8d-45f2-a26d-5f8e14666ec2/webinar-2026-04-20.mp4",
-  "updatedAt": "2026-04-20T17:00:00Z"
-}
-```
+1. Авторизація.
+2. Додавання запису в `event_jury`.
+3. Повернення інформації про доданого члена журі.
 
-Internal flow:
-
-1. Frontend uploads file directly to S3 using presigned `uploadUrl` from step 1.
-2. Frontend calls this endpoint to confirm upload completion.
-3. Backend verifies object existence and ownership.
-4. Update `event.videoUrl`.
-5. Return updated event video metadata.
-
-Sequence diagram:
+Діаграма послідовності:
 
 ```mermaid
 sequenceDiagram
-  participant FE as Frontend
+  participant Org as Organizer
   participant API as Backend API
-  participant S3 as Amazon S3
   participant DB as PostgreSQL
 
-  FE->>API: POST /events/complete-upload
-  API->>S3: HEAD object by fileKey
-  S3-->>API: Object exists
-  API->>DB: UPDATE event.videoUrl
-  DB-->>API: updated event
-  API-->>FE: 200 OK (eventId, videoUrl, updatedAt)
+  Org->>API: POST /events/:id/add-jury-member
+  API->>DB: Validate organizer rights
+  API->>DB: Ensure membership_role(jury)
+  API->>DB: INSERT event_jury
+  API-->>Org: 200 OK (jury member added)
 ```
 
-### 8. POST /events/assign-place
+### 8. POST /events/competition/:id/assign-place
 
-Assigns place to participant.
+Призначає місце учаснику.
 
-Auth and roles:
+Автентифікація та ролі:
 
-- Required auth: yes
-- Authorization contract: see `docs/authorization-matrix.md`
-
-Request body:
+- Обов'язкова автентифікація
+- Роль `JURY` + додатков аперевірка `isCurrentEventJury`
 
 ```json
 {
@@ -569,7 +540,7 @@ Request body:
 }
 ```
 
-Response `200`:
+Відповідь `200`:
 
 ```json
 {
@@ -580,14 +551,14 @@ Response `200`:
 }
 ```
 
-Internal flow:
+Внутрішній потік:
 
-1. Find event + participation by `(eventId, participantUserId)`.
-2. Check if event type is competition.
-3. Update `competition_participation.place` and `juryNotes`.
-4. Return current scoring state.
+1. Знайти подію + участь за `(eventId, participantUserId)`.
+2. Перевірити, що тип події - competition.
+3. Оновити `competition_participation.place` і `juryNotes`.
+4. Повернути поточний стан оцінювання.
 
-Sequence diagram:
+Діаграма послідовності:
 
 ```mermaid
 sequenceDiagram
@@ -595,9 +566,61 @@ sequenceDiagram
   participant API as Backend API
   participant DB as PostgreSQL
 
-  Jury->>API: POST /events/assign-place
+  Jury->>API: POST /events/competition/:id/assign-place
   API->>DB: Load event + participation
   API->>DB: Validate event.type = competition
   API->>DB: UPDATE competition_participation(place, juryNotes)
   API-->>Jury: 200 OK (current scoring state)
+```
+
+### 9. POST /events/competition//:id/grade-performance
+
+Виставляє оцінку за виступ учасника конкурсу.
+
+Автентифікація та ролі:
+
+- Обов'язкова автентифікація
+- Роль `JURY` + додатков аперевірка `isCurrentEventJury`
+
+Тіло запиту:
+
+```json
+{
+  "participantUserId": "7777d9fb-8c37-4b12-b0b3-09f66dc34f7f",
+  "grade": 96.5,
+  "juryNotes": "Excellent interpretation and technique"
+}
+```
+
+Відповідь `200`:
+
+```json
+{
+  "participationId": "b76607e7-e5b1-49bc-8130-836b3d5d1ed7",
+  "grade": 96.5,
+  "juryNotes": "Excellent interpretation and technique",
+  "updatedAt": "2026-04-20T17:30:00Z"
+}
+```
+
+Внутрішній потік:
+
+1. Знайти подію і участь за `:id` та `participantUserId`.
+2. Перевірити, що подія є конкурсом і викликач має роль журі.
+3. Оновити `competition_participation.grade` і `juryNotes`.
+4. Повернути оновлений стан оцінювання.
+
+Діаграма послідовності:
+
+```mermaid
+sequenceDiagram
+  participant Jury as Jury Member
+  participant API as Backend API
+  participant DB as PostgreSQL
+
+  Jury->>API: POST /events/competition//:id/grade-performance
+  API->>DB: Load event + participation
+  API->>DB: Validate event.type = competition
+  API->>DB: UPDATE competition_participation(grade, juryNotes)
+  API-->>Jury: 200 OK (updated scoring state)
 ```

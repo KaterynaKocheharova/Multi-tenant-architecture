@@ -106,7 +106,7 @@
 | `POST /lesson-plans/:id/create-from-template` | `TEACHER`                 |
 | `POST /lesson-plans/:id/assignments`          | `TEACHER`                 |
 
-## 📊 Reports
+## Reports
 
 | Endpoint             | Access                    |
 | -------------------- | ------------------------- |
@@ -168,3 +168,5 @@ router.patch(
 - `isSameTenant(ctx)` - перевірка tenant межі
 - `isOwner(ctx)` - користувач є власником ресурсу
 - `isAssignedTeacher(ctx)` - teacher пов'язаний зі student
+- `isCurrentEventOrganizer`
+- `isCurrentEventJury`
