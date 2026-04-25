@@ -6,30 +6,26 @@
 
 ## Навігація в документі
 
-- [ SECURITY](#security)
-  - [Authentication & Authorization](#authentication-authorization)
-    - [1. Magic Link двофакторна аутентифікація](#1-magic-link-двофакторна-аутентифікація)
-    - [2. Хешування паролів](#2-хешування-паролів)
-    - [3. Access Token (JWT) - короткодіючий](#3-access-token-jwt-короткодіючий)
-    - [4. Refresh Token - довгоживучий, як HttpOnly Cookie](#4-refresh-token-довгоживучий-як-httponly-cookie)
-    - [5. Token Revocation (Denylist)](#5-token-revocation-denylist)
-    - [6. Session Invalidation & Concurrent Session Limit](#6-session-invalidation-concurrent-session-limit)
-    - [7. Rate Limiting від DDoS та brute force](#7-rate-limiting-від-ddos-та-brute-force)
-    - [8. HTTPS (TLS/SSL) ВІД Man-in-the-Middle (MITM)](#8-https-tlsssl-від-man-in-the-middle-mitm)
-    - [9. Tenant-based Access Control](#9-tenant-based-access-control)
-    - [10. Row-Level Security (RLS) в БД](#10-row-level-security-rls-в-бд)
-    - [12. Обов'язкові Security Headers](#12-обовязкові-security-headers)
-    - [13. Audit Logging](#13-audit-logging)
-    - [14. Блокування айпі адрес при великій спробі невдалих запитів на автенцифікаційні ендпоїнти.](#14-блокування-айпі-адрес-при-великій-спробі-невдалих-запитів-на-автенцифікаційні-ендпоїнти)
-    - [15. SSL/TLS Certificate Validity - Автоматичне renewal перед expiry](#15-ssltls-certificate-validity-автоматичне-renewal-перед-expiry)
-    - [16. Sanitization](#16-sanitization)
+- [SECURITY](#security)
+  - [1. Magic Link двофакторна аутентифікація](#1-magic-link-двофакторна-аутентифікація)
+  - [2. Хешування паролів](#2-хешування-паролів)
+  - [3. Access Token - короткодіючий](#3-access-token---короткодіючий)
+  - [4. Refresh Token - довгоживучий](#4-refresh-token---довгоживучий)
+  - [5. Token Revocation (Denylist)](#5-token-revocation-denylist)
+  - [6. Session Invalidation](#6-session-invalidation)
+  - [7. Rate Limiting від DDoS та brute force](#7-rate-limiting-від-ddos-та-brute-force)
+  - [8. HTTPS (TLS/SSL) ВІД Man-in-the-Middle](#8-https-tlsssl-від-man-in-the-middle)
+  - [9. Tenant-based Access Control + RBAC + ABAC](#9-tenant-based-access-control--rbac--abac)
+  - [10. Обов'язкові Security Headers](#10-обовязкові-security-headers)
+  - [11. Audit Logging](#11-audit-logging)
+  - [12. Блокування айпі адрес при великій спробі невдалих запитів на автенцифікаційні ендпоїнти](#12-блокування-айпі-адрес-при-великій-спробі-невдалих-запитів-на-автенцифікаційні-ендпоїнти)
+  - [13. SSL/TLS Certificate Validity - Автоматичне renewal перед expiry](#13-ssltls-certificate-validity---автоматичне-renewal-перед-expiry)
+  - [14. Sanitization інпутів від користувача](#14-sanitization-інпутів-від-користувача)
 
 <!-- DOCS_TOC_START -->
 <!-- DOCS_TOC_END -->
 
 ## SECURITY
-
-### Authentication & Authorization
 
 #### 1. Magic Link двофакторна аутентифікація
 
@@ -41,12 +37,12 @@
 - Brute force захист. Сіль (salt) змушує хакера атакувати кожного користувача окремо, що робить масовий злам бази неможливим.
 - Bcrypt навмисно робить хешування повільним, роблячи кожну спробу перебору часозатратною.
 
-#### 3. Access Token (JWT) - короткодіючий
+#### 3. Access Token - короткодіючий
 
 - У зловмисників мало часу на використання токену, плюс у них нема рефреш токену на отримання нової пари.
 - Додавання токену у denyList після вилогіну унеможливлює його перевикористання.
 
-#### 4. Refresh Token - довгоживучий, як HttpOnly Cookie
+#### 4. Refresh Token - довгоживучий
 
 - `HttpOnly` - JavaScript НЕ може отримати доступ - XSS захист
 - `Secure` - передається тільки через HTTPS, не можна перехопити
@@ -59,7 +55,7 @@
 - Якщо хтось захопив refresh token, вимушений logout його інвалідує.
 - При кожному запиті перевіряється бд за токен jti, і якщо він "revoked", це унеможливлює запит
 
-#### 6. Session Invalidation & Concurrent Session Limit
+#### 6. Session Invalidation
 
 - На користувача максимум **1-2 активні сесії**
 - При логіні з нового пристрою, автоматично logout старого
