@@ -1,7 +1,3 @@
-```mermaid
-
-```
-
 <!-- DOCS_NAV_START -->
 
 [Docs Home](README.md) | [API Design](api-design.md) | [Auth](auth.md) | [RBAC](rbac.md) | [Data Model](data-model.md) | [Security](security.md) | [Deployment](deployment.md) | [Containers](containers.md) | [Context](context.md) | [Frontend](front.md) | [NFR](nfr.md) | [Req-Res Propagation](req-res-propagation.md) | [Risks](risks.md)
@@ -147,6 +143,7 @@ Axios використовуватимемо як HTTP-клієнт із цен�
 
 ## Frontend Architecture (Mermaid)
 
+```mermaid
 flowchart LR
 subgraph UI[Presentation Layer]
 Pages[Pages]
@@ -187,3 +184,4 @@ ResInt -->|401| Refresh
 Refresh --> ResInt
 ResInt -->|refresh ok| REST
 ResInt -->|refresh failed| Zustand
+```
