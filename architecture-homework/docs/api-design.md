@@ -1,56 +1,3 @@
-```mermaid
-```
-```json
-```
-```json
-```
-```mermaid
-```
-```json
-```
-```json
-```
-```mermaid
-```
-```json
-```
-```json
-```
-```mermaid
-```
-```json
-```
-```json
-```
-```mermaid
-```
-```json
-```
-```mermaid
-```
-```json
-```
-```json
-```
-```mermaid
-```
-```json
-```
-```json
-```
-```mermaid
-```
-```json
-```
-```json
-```
-```mermaid
-```
-```json
-```
-```json
-```
-```mermaid
 ```
 <!-- DOCS_NAV_START -->
 [Docs Home](README.md) | [API Design](api-design.md) | [Auth](auth.md) | [RBAC](rbac.md) | [Data Model](data-model.md) | [Security](security.md) | [Deployment](deployment.md) | [Containers](containers.md) | [Context](context.md) | [Frontend](front.md) | [NFR](nfr.md) | [Req-Res Propagation](req-res-propagation.md) | [Risks](risks.md)
@@ -658,3 +605,4 @@ sequenceDiagram
   API->>DB: Validate event.type = competition
   API->>DB: UPDATE competition_participation(grade, juryNotes)
   API-->>Jury: 200 OK (updated scoring state)
+```

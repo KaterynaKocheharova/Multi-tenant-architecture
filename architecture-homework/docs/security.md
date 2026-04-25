@@ -1,6 +1,6 @@
 <!-- DOCS_NAV_START -->
 
-[Docs Home](README.md) | [API Design](api-design.md) | [Auth](auth.md) | [RBAC](rbac.md) | [Data Model](data-model.md) | [Security](security.md) | [Deployment](deployment.md) | [Containers](containers.md) | [Context](context.md) | [Frontend](front.md) | [NFR](nfr.md) | [Req-Res Propagation](req-res-propagation.md) | [Risks](risks.md)
+[Docs Home](README.md) | [API Design](api-design.md) | [Auth](auth.md) | [RBAC](rbac.md) | [Data Model](data-model.md) | [Deployment](deployment.md) | [Containers](containers.md) | [Context](context.md) | [Frontend](front.md) | [NFR](nfr.md) | [Req-Res Propagation](req-res-propagation.md) | [Risks](risks.md)
 
 <!-- DOCS_NAV_END -->
 
@@ -16,11 +16,11 @@
   - [7. Rate Limiting від DDoS та brute force](#7-rate-limiting-від-ddos-та-brute-force)
   - [8. HTTPS (TLS/SSL) ВІД Man-in-the-Middle](#8-https-tlsssl-від-man-in-the-middle)
   - [9. Tenant-based Access Control + RBAC + ABAC](#9-tenant-based-access-control--rbac--abac)
-  - [10. Обов'язкові Security Headers](#10-обовязкові-security-headers)
-  - [11. Audit Logging](#11-audit-logging)
-  - [12. Блокування айпі адрес при великій спробі невдалих запитів на автенцифікаційні ендпоїнти](#12-блокування-айпі-адрес-при-великій-спробі-невдалих-запитів-на-автенцифікаційні-ендпоїнти)
-  - [13. SSL/TLS Certificate Validity - Автоматичне renewal перед expiry](#13-ssltls-certificate-validity---автоматичне-renewal-перед-expiry)
-  - [14. Sanitization інпутів від користувача](#14-sanitization-інпутів-від-користувача)
+  - [10. Audit Logging](#10-audit-logging)
+  - [11. Блокування айпі адрес при великій спробі невдалих запитів на автенцифікаційні ендпоїнти](#11-блокування-айпі-адрес-при-великій-спробі-невдалих-запитів-на-автенцифікаційні-ендпоїнти)
+  - [12. SSL/TLS Certificate Validity - Автоматичне renewal перед expiry](#12-ssltls-certificate-validity---автоматичне-renewal-перед-expiry)
+  - [13. Sanitization інпутів від користувача](#13-sanitization-інпутів-від-користувача)
+  - [14. Vercel Security Headers Config](#14-vercel-security-headers-config)
 
 <!-- DOCS_TOC_START -->
 <!-- DOCS_TOC_END -->
@@ -74,30 +74,72 @@
 - RLS
 - Мідлвари для RBAC, ABAC
 
-#### 10. Обов'язкові Security Headers
+#### 10. Audit Logging
 
-- `Content-Security-Policy` (CSP): Запобігнення XSS
-  ```
-  Content-Security-Policy:
-    default-src 'self';
-    script-src 'self' trusted-cdn.com;
-    style-src 'self' 'unsafe-inline'
-  ```
-- `X-Content-Type-Options: nosniff` (запобігнення MIME type sniffing)
-- `X-Frame-Options: DENY` або `SAMEORIGIN` (запобігнення clickjacking)
-- `Referrer-Policy: strict-origin-when-cross-origin` (запобігнення витоку реферера)
-
-#### 11. Audit Logging
+<a id="10-audit-logging"></a>
 
 - Login/logout (успіх + failure)
 - Доступ до sensitive data (reports, student grades)
 - Rate limit violations
 - Невдалі спроби доступу до чужих ресурсів
 
-#### 12. Блокування айпі адрес при великій спробі невдалих запитів на автенцифікаційні ендпоїнти
+#### 11. Блокування айпі адрес при великій спробі невдалих запитів на автенцифікаційні ендпоїнти
 
-#### 13. SSL/TLS Certificate Validity - Автоматичне renewal перед expiry
+#### 12. SSL/TLS Certificate Validity - Автоматичне renewal перед expiry
 
-#### 14. Sanitization інпутів від користувача
+#### 13. Sanitization інпутів від користувача
 
 Прибирати теги та атрибути коду при перевірці даних із інпуту, щоб не дозволити зловмисному скірпту виконатися.
+
+#### 14. Vercel Security Headers Config
+
+```json
+{
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        {
+          "key": "Content-Security-Policy",
+          /* CSP — Головний щит. Визначає, звідки браузеру дозволено завантажувати ресурси.
+             - default-src 'self': дозволяти ресурси тільки з власного домену.
+             - script-src: дозволяє скрипти з власного сайту, інлайнові скрипти ('unsafe-inline') та конкретний довірений домен.
+             - style-src: дозволяє стилі сайту та інлайнові стилі (часто потрібно для React).
+             - img-src: дозволяє зображення з власного сайту та base64 дані (data:).
+             - connect-src: КРИТИЧНО — тут має бути адреса API, щоб запити не блокувалися. */
+          "value": "default-src 'self'; script-src 'self' 'unsafe-inline' https://trusted-scripts.com; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' https://your-nestjs-api.com;"
+        },
+        {
+          "key": "X-Frame-Options",
+          /* Забороняє відображати сайт у <iframe> на сторонніх ресурсах.
+             Захищає від Clickjacking. */
+          "value": "SAMEORIGIN"
+        },
+        {
+          "key": "X-Content-Type-Options",
+          /* Забороняє браузеру виконувати файл, якщо його MIME-тип відрізняється від заявленого. */
+          "value": "nosniff"
+        },
+        {
+          "key": "Referrer-Policy",
+          /* 'strict-origin-when-cross-origin' — передає повну адресу всередині сайту,
+             але тільки домен при переході на зовнішні ресурси по HTTPS. */
+          "value": "strict-origin-when-cross-origin"
+        },
+        {
+          "key": "Strict-Transport-Security",
+          /* HSTS — примушує браузер використовувати тільки HTTPS протягом наступного року.
+             includeSubDomains — поширюється і на піддомени.
+             preload — дозвіл на включення сайту до preload-списку браузерів. */
+          "value": "max-age=31536000; includeSubDomains; preload"
+        },
+        {
+          "key": "Permissions-Policy",
+          /* Обмежує доступ до апаратних функцій пристрою. */
+          "value": "camera=(), microphone=(), geolocation=()"
+        }
+      ]
+    }
+  ]
+}
+```
