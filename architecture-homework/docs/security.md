@@ -6,7 +6,7 @@
 
 ## Навігація в документі
 
-- [🔒 SECURITY](#🔒-security)
+- [ SECURITY](#security)
   - [Authentication & Authorization](#authentication-authorization)
     - [1. Magic Link двофакторна аутентифікація](#1-magic-link-двофакторна-аутентифікація)
     - [2. Хешування паролів](#2-хешування-паролів)
