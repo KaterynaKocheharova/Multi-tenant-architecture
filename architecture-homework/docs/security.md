@@ -1,5 +1,7 @@
 <!-- DOCS_NAV_START -->
+
 [Docs Home](README.md) | [API Design](api-design.md) | [Auth](auth.md) | [RBAC](rbac.md) | [Data Model](data-model.md) | [Security](security.md) | [Deployment](deployment.md) | [Containers](containers.md) | [Context](context.md) | [Frontend](front.md) | [NFR](nfr.md) | [Req-Res Propagation](req-res-propagation.md) | [Risks](risks.md)
+
 <!-- DOCS_NAV_END -->
 
 ## Навігація в документі
@@ -25,25 +27,23 @@
 <!-- DOCS_TOC_START -->
 <!-- DOCS_TOC_END -->
 
-
-## 🔒 SECURITY
+## SECURITY
 
 ### Authentication & Authorization
 
 #### 1. Magic Link двофакторна аутентифікація
 
 - **Мета**: Забезпечити надійний, user-friendly доступ без компрометованих паролів.
-- **Від чого**: Якщо пароль вкрадуть, зловмисникам його буде недостатньо.
+- **Від чого**: Якщо пароль вкрадуть або взгадають, зловмисникам його буде недостатньо.
 
 #### 2. Хешування паролів
 
-- Brute force (Брутфорс): Спроба вгадати пароль шляхом перебору всіх комбінацій. Сіль (salt) змушує хакера атакувати кожного користувача окремо, що робить масовий злам бази неможливим.
-- Rainbow table (Райдужні таблиці): Використання гігантських словників із заздалегідь прорахованими хешам.Сіль робить ці таблиці марними, оскільки додає унікальний рандомний рядок до пароля, змінюючи фінальний хеш.
-- GPU/ASIC cracking: Використання спеціалізованого потужного обладнання для прискореного перебору. Bcrypt вирішує це через навмисну повільність (cost factor), роблячи кожну спробу перебору дорогою за часом.
+- Brute force захист. Сіль (salt) змушує хакера атакувати кожного користувача окремо, що робить масовий злам бази неможливим.
+- Bcrypt навмисно робить хешування повільним, роблячи кожну спробу перебору часозатратною.
 
 #### 3. Access Token (JWT) - короткодіючий
 
-- У зловмисників мало часу на використання токену, плюч у них нема рефреш токену на отримання нової пари.
+- У зловмисників мало часу на використання токену, плюс у них нема рефреш токену на отримання нової пари.
 - Додавання токену у denyList після вилогіну унеможливлює його перевикористання.
 
 #### 4. Refresh Token - довгоживучий, як HttpOnly Cookie
@@ -61,25 +61,24 @@
 
 #### 6. Session Invalidation & Concurrent Session Limit
 
-- На користувача максимум **1-2 активні сесії** (НЕ рекомендуємо 10+)
+- На користувача максимум **1-2 активні сесії**
 - При логіні з нового пристрою, автоматично logout старого
 
 #### 7. Rate Limiting від DDoS та brute force
 
-- Кількість максимальних спроб на хапити на логін, верифікацію лінки та рефреш
+- Кількість максимальних спроб на запити на логін, верифікацію лінки та рефреш
 - Response при превищенні: HTTP 429 (Too Many Requests) + Retry-After header
 
-#### 8. HTTPS (TLS/SSL) ВІД Man-in-the-Middle (MITM)
+#### 8. HTTPS (TLS/SSL) ВІД Man-in-the-Middle
 
 - Шифрування всіх даних при передачі
 
-#### 9. Tenant-based Access Control
+#### 9. Tenant-based Access Control + RBAC + ABAC
 
-- Мідлвари що перевіряє доступ до ендпоїнту за тенант аід користувача
+- RLS
+- Мідлвари для RBAC, ABAC
 
-#### 10. Row-Level Security (RLS) в БД
-
-#### 12. Обов'язкові Security Headers
+#### 10. Обов'язкові Security Headers
 
 - `Content-Security-Policy` (CSP): Запобігнення XSS
   ```
@@ -90,20 +89,19 @@
   ```
 - `X-Content-Type-Options: nosniff` (запобігнення MIME type sniffing)
 - `X-Frame-Options: DENY` або `SAMEORIGIN` (запобігнення clickjacking)
-- `X-XSS-Protection: 1; mode=block` (legacy, але корисне)
 - `Referrer-Policy: strict-origin-when-cross-origin` (запобігнення витоку реферера)
 
-#### 13. Audit Logging
+#### 11. Audit Logging
 
 - Login/logout (успіх + failure)
 - Доступ до sensitive data (reports, student grades)
 - Rate limit violations
 - Невдалі спроби доступу до чужих ресурсів
 
-#### 14. Блокування айпі адрес при великій спробі невдалих запитів на автенцифікаційні ендпоїнти.
+#### 12. Блокування айпі адрес при великій спробі невдалих запитів на автенцифікаційні ендпоїнти
 
-#### 15. SSL/TLS Certificate Validity - Автоматичне renewal перед expiry
+#### 13. SSL/TLS Certificate Validity - Автоматичне renewal перед expiry
 
-#### 16. Sanitization
+#### 14. Sanitization інпутів від користувача
 
 Прибирати теги та атрибути коду при перевірці даних із інпуту, щоб не дозволити зловмисному скірпту виконатися.
