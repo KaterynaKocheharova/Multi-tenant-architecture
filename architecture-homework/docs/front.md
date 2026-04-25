@@ -6,33 +6,31 @@
 
 ## Навігація в документі
 
-- [Tenant Resolution + Tenant-Scoped API Calls](#tenant-resolution-tenant-scoped-api-calls)
+- [Tenant Resolution + Tenant-Scoped API Calls](#tenant-flow)
 - [Post-Login Redirect by Role](#post-login-redirect-by-role)
 - [Route Protection](#route-protection)
 - [Navigation Menu](#navigation-menu)
   - [SYSADMIN](#sysadmin)
   - [SCHOOL_ADMIN](#school_admin)
   - [TEACHER](#teacher)
-- [Tenant-Aware Scoping](#tenant-aware-scoping)
 - [Access Token Lifecycle](#access-token-lifecycle)
 - [State management](#state-management)
 - [Api integration pattern](#api-integration-pattern)
   - [Що робить request interceptor](#що-робить-request-interceptor)
   - [Що робить response interceptor](#що-робить-response-interceptor)
   - [Flow обробки відповіді](#flow-обробки-відповіді)
-- [Frontend Architecture (Mermaid)](#frontend-architecture-mermaid)
 
 <!-- DOCS_TOC_START -->
 <!-- DOCS_TOC_END -->
 
-## Tenant Resolution + Tenant-Scoped API Calls
+## Tenant flow
 
 1. Отримали юзер на фронті.
 2. При кожному запиту на бек, передаємо токен.
 3. Без отримує айді юзера з пейлоуду, шукає юзера.
 4. Маючи тенант айді юзера, він тепер контролює запити до бази даних і додає відповідну фільтрацію.
 
-Тобто по суті тенант запити і дані що має отримати юзер контролюються беком. Іронтенд контролює доступи до певних сторінок на основі ролей та автентифікації.
+Тобто по суті тенант запити і дані, що має отримати юзер, контролюються беком. А фронтенд контролює доступи до певних сторінок на основі ролей та автентифікації.
 
 ## Post-Login Redirect by Role
 
