@@ -6,7 +6,7 @@
 
 ## Навігація в документі
 
-- [Tenant Resolution + Tenant-Scoped API Calls](#tenant-flow)
+- [Tenant Flow](#tenant-flow)
 - [Post-Login Redirect by Role](#post-login-redirect-by-role)
 - [Route Protection](#route-protection)
 - [Navigation Menu](#navigation-menu)
