@@ -1,0 +1,86 @@
+sequenceDiagram
+    participant U as User
+    participant F as Frontend (React SPA)
+    participant A as API Server
+    participant M as Auth Middleware
+    participant DB as Database (sessions + revoked_tokens)
+
+    %% =========================
+    %% LOGIN FLOW
+    %% =========================
+    U->>A: Login via magic link
+    A->>DB: Validate magic link
+
+    DB-->>A: OK
+
+    A-->>F: access_token (JWT)
+    A-->>F: refresh_token (HttpOnly cookie)
+
+    Note over F: access_token stored in memory
+
+    %% =========================
+    %% NORMAL API REQUEST
+    %% =========================
+    F->>A: API request + Authorization: Bearer access_token
+    A->>M: Validate JWT
+
+    M->>M: verify signature + expiration
+    M->>DB: optional check jti in revoked_tokens
+
+    alt token valid
+        DB-->>M: not revoked
+        M-->>A: user attached (userId, schoolId)
+        A-->>F: 200 OK response
+    else token invalid or revoked
+        DB-->>M: revoked OR invalid
+        M-->>F: 401 Unauthorized
+    end
+
+    %% =========================
+    %% REFRESH FLOW (ROTATION)
+    %% =========================
+    F->>A: POST /auth/refresh
+    Note over F,A: refresh_token auto-attached via HttpOnly cookie
+
+    A->>DB: hash(refresh_token) lookup session
+
+    alt refresh token valid
+        DB-->>A: session found
+
+        A->>DB: revoke old refresh token
+        A->>DB: store new tokenHash (rotation)
+
+        A-->>F: new access_token (JSON)
+        A-->>F: new refresh_token (Set-Cookie)
+
+        Note over F: update in-memory access_token
+    else refresh token invalid
+        DB-->>A: not found or revoked
+        A-->>F: 401 Unauthorized
+    end
+
+    %% =========================
+    %% LOGOUT FLOW
+    %% =========================
+    F->>A: POST /auth/logout
+
+    A->>DB: revoke refresh session
+    A->>DB: insert access_token.jti into revoked_tokens
+
+    A-->>F: clear refresh cookie
+    A-->>F: 200 OK
+
+    %% =========================
+    %% DENYLIST CHECK
+    %% =========================
+    Note over M,DB: For every request
+
+    M->>DB: check jti in revoked_tokens
+
+    alt jti exists
+        DB-->>M: revoked
+        M-->>F: 401 Unauthorized
+    else jti not found
+        DB-->>M: ok
+        M-->>A: continue request
+    end

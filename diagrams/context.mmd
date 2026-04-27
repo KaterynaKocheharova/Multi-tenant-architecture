@@ -1,0 +1,34 @@
+flowchart TB
+	%% Bounded Context Map
+
+	subgraph TM[Контекст управління тенантами]
+		TM_E[Сутності:<br/>Tenant]
+		TM_B[Поведінка:<br/>реєстрація школи<br/>активація / призупинення]
+	end
+
+	subgraph ID[Контекст ідентифікації]
+		ID_E[Сутності:<br/>User<br/>TeacherDetails<br/>StudentDetails<br/>Membership<br/>MembershipRole]
+		ID_B[Поведінка:<br/>автентифікація<br/>межі доступу на рівні школи<br/>керування даними юзера<br/>визначення приналежності до тенанта]
+	end
+
+	subgraph EV[Контекст управління подіями]
+		EV_E[Сутності:<br/>Event<br/>EventParticipation<br/>CompetitionParticipation]
+		EV_B[Поведінка:<br/>створення події<br/>реєстрація<br/>участь та відвідуваність<br/>призначення місця<br/>сертифікати]
+	end
+
+	subgraph LP[Контекст планування уроків]
+		LP_E[Сутності:<br/>LessonPlan<br/>LessonPlanAssignment]
+		LP_B[Поведінка:<br/>створення плану / шаблону<br/>призначення плану учню]
+	end
+
+	subgraph RP[Контекст звітності]
+		RP_E[Основна концепція:<br/>звіт обчислюється та зберігається]
+		RP_I[Вхідні дані:<br/>EventParticipation<br/>LessonPlanAssignment]
+		RP_B[Поведінка:<br/>агрегація даних<br/>обчислення результатів<br/>генерація та збереження звітів]
+	end
+
+	TM -->|реєстр тенантів| ID
+	ID -->|ідентифікація та доступ| EV
+	ID -->|ідентифікація та доступ| LP
+	EV -->|дані участі у подіях| RP
+	LP -->|дані призначень уроків| RP
