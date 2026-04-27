@@ -1,7 +1,7 @@
-```ts
-```
 <!-- DOCS_NAV_START -->
+
 [Docs Home](README.md) | [API Design](api-design.md) | [Auth](auth.md) | [RBAC](rbac.md) | [Data Model](data-model.md) | [Security](security.md) | [Deployment](deployment.md) | [Containers](containers.md) | [Context](context.md) | [Frontend](front.md) | [NFR](nfr.md) | [Req-Res Propagation](req-res-propagation.md) | [Risks](risks.md)
+
 <!-- DOCS_NAV_END -->
 
 ## Навігація в документі
@@ -26,7 +26,6 @@
 
 <!-- DOCS_TOC_START -->
 <!-- DOCS_TOC_END -->
-
 
 # RBAC
 
@@ -183,12 +182,12 @@ ABAC у цій моделі використовується для обмеже
 Приклад:
 
 router.patch(
-  "/students/:userId",
-  authorize({
-    roles: [{ tenant: ["TEACHER"] }],
-    checks: [isAssignedTeacher],
-  }),
-  handler,
+"/students/:userId",
+authorize({
+roles: [{ tenant: ["TEACHER"] }],
+checks: [isAssignedTeacher],
+}),
+handler,
 );
 
 ### ABAC перевірки
