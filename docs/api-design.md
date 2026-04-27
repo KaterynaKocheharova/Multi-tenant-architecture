@@ -1,5 +1,7 @@
 <!-- DOCS_NAV_START -->
+
 [Docs Home](README.md) | [API Design](api-design.md) | [Auth](auth.md) | [RBAC](rbac.md) | [Data Model](data-model.md) | [Security](security.md) | [Deployment](deployment.md) | [Containers](containers.md) | [Context](context.md) | [Frontend](front.md) | [NFR](nfr.md) | [Req-Res Propagation](req-res-propagation.md) | [Risks](risks.md)
+
 <!-- DOCS_NAV_END -->
 
 ## Навігація в документі
@@ -30,7 +32,6 @@
 
 <!-- DOCS_TOC_START -->
 <!-- DOCS_TOC_END -->
-
 
 ## Перелік усіх ендпоїнтів
 
@@ -98,6 +99,7 @@
 
 ## Глобальна схема ендпоїнтів
 
+```mermaid
 flowchart TB
   subgraph TenantManagement
     TM1[POST /tenants]
@@ -160,6 +162,7 @@ flowchart TB
     R3[GET /reports/:id]
     R4[PATCH /reports/:id]
   end
+```
 
 ## 9 ДЕТАЛЬНИХ ОПИСІВ ЕНДПОЇНТІВ
 
@@ -174,6 +177,7 @@ flowchart TB
 
 Створює новий tenant (школу).
 
+```json
 {
   "name": "Kyiv Music School #7",
   "initialAdmin": {
@@ -182,15 +186,18 @@ flowchart TB
     "password": "StrongPass!123"
   }
 }
+```
 
 Відповідь `201`:
 
+```json
 {
   "id": "9c926e8a-2e4e-4490-98a0-725d32ba1628",
   "name": "Kyiv Music School #7",
   "status": "active",
   "createdAt": "2026-04-14T08:10:00Z"
 }
+```
 
 Внутрішній потік:
 
@@ -207,6 +214,7 @@ flowchart TB
 
 Діаграма послідовності:
 
+```mermaid
 sequenceDiagram
   participant SA as Sysadmin
   participant API as Backend API
@@ -222,6 +230,7 @@ sequenceDiagram
   API->>DB: INSERT membership_role(schoolAdmin)
   API->>Mail: Send magic link onboarding email
   API-->>SA: 201 Created (tenant metadata)
+```
 
 ## ІДЕНТИЧНІСТЬ
 
@@ -234,6 +243,7 @@ sequenceDiagram
 - Обов'язкова автентифікація: так
 - Роль `SCHOOL ADMIN`
 
+```json
 {
   "fullName": "Maksym Kovalenko",
   "email": "maksym.kovalenko@school-a.edu.ua",
@@ -241,9 +251,11 @@ sequenceDiagram
   "membershipRole": "Teacher",
   "password": "Secret2000"
 }
+```
 
 Відповідь `201`:
 
+```json
 {
   "id": "f8f2aef3-8c1d-453f-ab2a-fda1faa8e072",
   "fullName": "Maksym Kovalenko",
@@ -252,6 +264,7 @@ sequenceDiagram
   "membershipRole": "Teacher",
   "isActive": "true"
 }
+```
 
 1. Перевіряється унікальність email: якщо email існує, повертається "Conflict".
 2. Зберігається хеш пароля.
@@ -261,6 +274,7 @@ sequenceDiagram
 
 Діаграма послідовності:
 
+```mermaid
 sequenceDiagram
   participant Admin as School Admin
   participant API as Backend API
@@ -279,6 +293,7 @@ sequenceDiagram
     API->>Mail: Send magic link
     API-->>Admin: 201 Created
   end
+```
 
 ## ПОДІЇ
 
@@ -291,6 +306,7 @@ sequenceDiagram
 - Обов'язкова автентифікація
 - Роль `Teacher`, `School admin`
 
+```json
 {
   "scope": "TENANT",
   "type": "webinar",
@@ -300,9 +316,11 @@ sequenceDiagram
   "endDate": "2026-04-20T16:30:00Z",
   "organizerUserId": "9bdf0506-cb0f-4f54-860e-a6eb4f742fc2"
 }
+```
 
 Відповідь `201`:
 
+```json
 {
   "id": "11c96f9b-0d8d-45f2-a26d-5f8e14666ec2",
   "scope": "TENANT",
@@ -315,6 +333,7 @@ sequenceDiagram
   "startDate": "2026-04-20T15:00:00Z",
   "endDate": "2026-04-20T16:30:00Z"
 }
+```
 
 Внутрішній потік:
 
@@ -323,6 +342,7 @@ sequenceDiagram
 
 Діаграма послідовності:
 
+```mermaid
 sequenceDiagram
   participant User as Teacher or School Admin
   participant API as Backend API
@@ -333,6 +353,7 @@ sequenceDiagram
   API->>DB: INSERT event
   DB-->>API: event row
   API-->>User: 201 Created (event)
+```
 
 ### 4. POST /events/:id/register
 
@@ -345,15 +366,18 @@ sequenceDiagram
 
 Тіло запиту:
 
+```json
 {
   "eventId": "4f2d6ce7-8d42-4d7e-8f4a-4e953d3f66b5",
   "participantUserId": "7777d9fb-8c37-4b12-b0b3-09f66dc34f7f",
   "roleInEvent": "performer",
   "notes": "solo piano"
 }
+```
 
 Відповідь `201`:
 
+```json
 {
   "id": "b76607e7-e5b1-49bc-8130-836b3d5d1ed7",
   "eventId": "4f2d6ce7-8d42-4d7e-8f4a-4e953d3f66b5",
@@ -363,6 +387,7 @@ sequenceDiagram
   "attended": false,
   "notes": "solo piano"
 }
+```
 
 Внутрішній потік:
 
@@ -373,6 +398,7 @@ sequenceDiagram
 
 Діаграма послідовності:
 
+```mermaid
 sequenceDiagram
   participant User as Teacher or School Admin
   participant API as Backend API
@@ -385,6 +411,7 @@ sequenceDiagram
     API->>DB: INSERT competition_participation
   end
   API-->>User: 201 Created (participation)
+```
 
 ### 5. POST /events/webinars/:id/attendance
 
@@ -393,11 +420,13 @@ sequenceDiagram
 - Обов'язкова автентифікація
 - Роль `Organizer`
 
+```json
 {
   "participantUserId": "7777d9fb-8c37-4b12-b0b3-09f66dc34f7f",
   "attended": true,
   "notes": "arrived on time"
 }
+```
 
 Внутрішній потік:
 
@@ -407,6 +436,7 @@ sequenceDiagram
 
 Діаграма послідовності:
 
+```mermaid
 sequenceDiagram
   participant Jury as Jury or Organizer
   participant API as Backend API
@@ -416,6 +446,7 @@ sequenceDiagram
   API->>DB: Verify caller role for event
   API->>DB: UPDATE event_participation(attended, attendanceMarkedAt, notes)
   API-->>Jury: 200 OK (updated participation)
+```
 
 ### 6. POST /events/:id/request-video-upload
 
@@ -428,6 +459,7 @@ sequenceDiagram
 
 Тіло запиту:
 
+```json
 {
   "eventId": "11c96f9b-0d8d-45f2-a26d-5f8e14666ec2",
   "fileName": "webinar-2026-04-20.mp4",
@@ -435,15 +467,18 @@ sequenceDiagram
   "fileSizeBytes": 523001002,
   "participantId": "dkejn46218ttt"
 }
+```
 
 Відповідь `200`:
 
+```json
 {
   "eventId": "11c96f9b-0d8d-45f2-a26d-5f8e14666ec2",
   "uploadUrl": "https://s3.eu-west-1.amazonaws.com/...signed...",
   "fileKey": "events/11c96f9b-0d8d-45f2-a26d-5f8e14666ec2/webinar-2026-04-20.mp4",
   "expiresInSeconds": 900
 }
+```
 
 Внутрішній потік:
 
@@ -457,6 +492,7 @@ sequenceDiagram
 
 Діаграма послідовності:
 
+```mermaid
 sequenceDiagram
   participant FE as Frontend
   participant API as Backend API
@@ -469,6 +505,7 @@ sequenceDiagram
   API-->>FE: 200 OK (uploadUrl, fileKey)
   FE->>S3: PUT video file via uploadUrl
   S3-->>FE: 200 Upload complete
+```
 
 ### 7. POST /events/:id/add-jury-member
 
@@ -481,19 +518,23 @@ sequenceDiagram
 
 Тіло запиту:
 
+```json
 {
   "juryUserId": "3c89e6e0-1886-4ff7-88fd-bc45d0e1a0da",
   "role": "jury"
 }
+```
 
 Відповідь `200`:
 
+```json
 {
   "eventId": "11c96f9b-0d8d-45f2-a26d-5f8e14666ec2",
   "juryUserId": "3c89e6e0-1886-4ff7-88fd-bc45d0e1a0da",
   "membershipRole": "jury",
   "addedAt": "2026-04-20T17:00:00Z"
 }
+```
 
 Внутрішній потік:
 
@@ -503,6 +544,7 @@ sequenceDiagram
 
 Діаграма послідовності:
 
+```mermaid
 sequenceDiagram
   participant Org as Organizer
   participant API as Backend API
@@ -513,6 +555,7 @@ sequenceDiagram
   API->>DB: Ensure membership_role(jury)
   API->>DB: INSERT event_jury
   API-->>Org: 200 OK (jury member added)
+```
 
 ### 8. POST /events/competition/:id/assign-place
 
@@ -523,21 +566,25 @@ sequenceDiagram
 - Обов'язкова автентифікація
 - Роль `JURY` + додатков аперевірка `isCurrentEventJury`
 
+```json
 {
   "eventId": "4f2d6ce7-8d42-4d7e-8f4a-4e953d3f66b5",
   "participantUserId": "7777d9fb-8c37-4b12-b0b3-09f66dc34f7f",
   "place": 1,
   "juryNotes": "Excellent interpretation and technique"
 }
+```
 
 Відповідь `200`:
 
+```json
 {
   "participationId": "b76607e7-e5b1-49bc-8130-836b3d5d1ed7",
   "grade": 96.5,
   "place": 1,
   "juryNotes": "Excellent interpretation and technique"
 }
+```
 
 Внутрішній потік:
 
@@ -548,6 +595,7 @@ sequenceDiagram
 
 Діаграма послідовності:
 
+```mermaid
 sequenceDiagram
   participant Jury as Jury Member
   participant API as Backend API
@@ -558,6 +606,7 @@ sequenceDiagram
   API->>DB: Validate event.type = competition
   API->>DB: UPDATE competition_participation(place, juryNotes)
   API-->>Jury: 200 OK (current scoring state)
+```
 
 ### 9. POST /events/competition//:id/grade-performance
 
@@ -570,20 +619,24 @@ sequenceDiagram
 
 Тіло запиту:
 
+```json
 {
   "participantUserId": "7777d9fb-8c37-4b12-b0b3-09f66dc34f7f",
   "grade": 96.5,
   "juryNotes": "Excellent interpretation and technique"
 }
+```
 
 Відповідь `200`:
 
+```json
 {
   "participationId": "b76607e7-e5b1-49bc-8130-836b3d5d1ed7",
   "grade": 96.5,
   "juryNotes": "Excellent interpretation and technique",
   "updatedAt": "2026-04-20T17:30:00Z"
 }
+```
 
 Внутрішній потік:
 
@@ -594,6 +647,7 @@ sequenceDiagram
 
 Діаграма послідовності:
 
+```mermaid
 sequenceDiagram
   participant Jury as Jury Member
   participant API as Backend API
@@ -604,4 +658,8 @@ sequenceDiagram
   API->>DB: Validate event.type = competition
   API->>DB: UPDATE competition_participation(grade, juryNotes)
   API-->>Jury: 200 OK (updated scoring state)
+```
+
+```
+
 ```
