@@ -1,0 +1,109 @@
+sequenceDiagram
+    autonumber
+
+    participant C as Client (Browser)
+    participant MW as Auth Middleware
+    participant TR as Tenant Resolver
+    participant RG as RBAC Guard
+    participant AB as ABAC Check
+    participant SVC as Service Layer
+    participant DB as PostgreSQL (RLS)
+
+    Note over C,DB: ══════════════════════════════════════
+    Note over C,DB: INCOMING REQUEST  (Authorization: Bearer <access_token>)
+    Note over C,DB: ══════════════════════════════════════
+
+    C->>MW: HTTP Request + Bearer JWT
+
+    %% ─── STEP 1: JWT Validation ───
+    MW->>MW: verify JWT signature
+    MW->>MW: check exp (token expiry)
+    MW->>DB: SELECT 1 FROM revoked_tokens WHERE jti = $jti
+    alt jti is revoked OR signature invalid OR expired
+        DB-->>MW: row found / invalid
+        MW-->>C: 401 Unauthorized
+    else JWT is valid
+        DB-->>MW: no row (not revoked)
+        Note over MW: JWT payload: { userId, jti }
+    end
+
+    %% ─── STEP 2: Load User + Global Role ───
+    MW->>DB: SELECT id, globalRole, isActive FROM users WHERE id = $userId
+    DB-->>MW: { id, globalRole: SYSADMIN | MEMBER, isActive }
+    alt user inactive
+        MW-->>C: 403 Forbidden (account disabled)
+    end
+
+    %% ─── STEP 3: Tenant Context Resolution ───
+    MW->>TR: resolve tenant for userId
+    TR->>DB: SELECT m.schoolId, mr.role\n        FROM memberships m\n        JOIN membership_roles mr ON mr.membershipId = m.id\n        WHERE m.userId = $userId
+    DB-->>TR: { tenantId (schoolId), tenantRoles: [SCHOOL_ADMIN | TEACHER | STUDENT] }
+
+    Note over TR: RequestContext assembled:\n{ userId, tenantId, globalRole, tenantRoles }
+    TR-->>MW: inject ctx into request
+
+    %% ─── STEP 4: RBAC Guard ───
+    MW->>RG: guard.canActivate(request)
+    Note over RG: Read required roles from route decorator\n@Roles(platform?, tenant?, event?)
+
+    alt Platform-level check (SYSADMIN required)
+        RG->>RG: ctx.globalRole === SYSADMIN ?
+    else Tenant-level check (SCHOOL_ADMIN / TEACHER / STUDENT)
+        RG->>RG: ctx.tenantRoles.includes(requiredRole) ?
+    else Event-level check (JURY / ORGANIZER / etc.)
+        RG->>DB: SELECT roleInEvent FROM event_participations\n        WHERE eventId=$id AND userId=$userId
+        DB-->>RG: roleInEvent
+        RG->>RG: roleInEvent === requiredEventRole ?
+    end
+
+    alt RBAC denied
+        RG-->>C: 403 Forbidden (insufficient role)
+    else RBAC passed
+        RG-->>SVC: proceed
+    end
+
+    %% ─── STEP 5: ABAC (resource ownership) ───
+    SVC->>AB: check ownership / attribute policy
+    Note over AB: e.g. student can only PATCH own profile\nteacher can only modify own events
+    AB->>DB: SELECT tenantId, ownerId FROM <resource> WHERE id = $resourceId
+    DB-->>AB: resource row
+    AB->>AB: resource.tenantId === ctx.tenantId ?\nresource.ownerId === ctx.userId ?
+    alt ABAC denied
+        AB-->>C: 403 Forbidden (not your resource)
+    else ABAC passed
+        AB-->>SVC: proceed
+    end
+
+    %% ─── STEP 6: DB Transaction + RLS Context ───
+    Note over SVC,DB: ══════════════════════════════════════
+    Note over SVC,DB: TENANT CONTEXT PROPAGATION INTO DB
+    Note over SVC,DB: ══════════════════════════════════════
+
+    SVC->>DB: BEGIN TRANSACTION
+    SVC->>DB: SET LOCAL app.current_tenant = '$tenantId'
+    SVC->>DB: SET LOCAL app.current_global_role = '$globalRole'
+
+    %% ─── STEP 7: Query + RLS Enforcement ───
+    SVC->>DB: SELECT / INSERT / UPDATE / DELETE <table> WHERE ...
+
+    Note over DB: RLS policy fires for every row:
+    Note over DB: USING: row.tenantId = current_setting('app.current_tenant')\n   OR  globalRole = 'SYSADMIN'\n   OR  (isGlobal = true  ← events only)
+    Note over DB: WITH CHECK (writes): same conditions enforced
+
+    alt Row passes USING policy
+        DB-->>SVC: scoped result set (only tenant's rows)
+    else Row fails USING policy
+        DB-->>SVC: empty / 0 rows (invisible, not an error)
+    end
+
+    alt Write + WITH CHECK fails
+        DB-->>SVC: ERROR (write blocked by RLS)
+        SVC->>DB: ROLLBACK
+        SVC-->>C: 403 / 500
+    else Write + WITH CHECK passes
+        DB-->>SVC: rows written
+    end
+
+    SVC->>DB: COMMIT
+    DB-->>SVC: OK
+    SVC-->>C: 200 OK + response body
