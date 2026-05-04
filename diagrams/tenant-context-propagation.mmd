@@ -8,8 +8,8 @@ flowchart TD
     S5["5. Attach user + schoolId to req"]
     S6["6. Start DB request"]
     S7["7. Set globalRole + tenantId in request context"]
-    S8["8. Make request"]
-    S9{"9. Tenants match\nand event is not global?"}
+    S8["8. Make request to get items with a specific tenantId from context if not global event"]
+    S9{"9. Context data present? "}
     OK["Executed"]
     DENY["Empty data returned\nor error"]
 
