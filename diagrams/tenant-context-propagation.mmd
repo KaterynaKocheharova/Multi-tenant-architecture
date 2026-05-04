@@ -1,80 +1,28 @@
 flowchart TD
 
-    REQ(["HTTP Request\nBearer JWT"])
+    REQ(["HTTP request"])
+    S1["1. Get userId"]
+    S2["2. Find user"]
+    S3["3. Find membership"]
+    S4["4. Get schoolId from membership"]
+    S5["5. Attach user + schoolId to req"]
+    S6["6. Start DB request"]
+    S7["7. Set globalRole + tenantId in request context"]
+    S8["8. Make request"]
+    S9{"9. Tenants match\nand event is not global?"}
+    OK["Executed"]
+    DENY["Empty data returned\nor error"]
 
-    subgraph AUTH ["① JWT Middleware"]
-        direction TB
-        A1["verify signature\n+ expiry"]
-        A2[("jti not in\nrevoked_tokens?")]
-        A1 --> A2
-    end
+    REQ --> S1 --> S2 --> S3 --> S4 --> S5 --> S6 --> S7 --> S8 --> S9
+    S9 -->|yes| OK
+    S9 -->|no| DENY
 
-    subgraph TENCTX ["② Tenant Resolution"]
-        direction TB
-        T1[("SELECT globalRole\nFROM users")]
-        T2[("SELECT tenantId · roles\nFROM memberships\n+ membership_roles")]
-        T3{{"RequestContext\nuserId · tenantId\nglobalRole · tenantRoles"}}
-        T1 --> T2 --> T3
-    end
+    classDef step fill:#E3F2FD,stroke:#1565C0,color:#000
+    classDef decision fill:#FFF3E0,stroke:#EF6C00,color:#000
+    classDef ok fill:#E8F5E9,stroke:#2E7D32,color:#000
+    classDef deny fill:#FFEBEE,stroke:#C62828,color:#000
 
-    subgraph RBAC ["③ RBAC Guard"]
-        direction TB
-        RB1{"role\nscope?"}
-        RB2["Platform\nglobalRole"]
-        RB3["Tenant\nMembershipRole"]
-        RB4[("Event\nroleInEvent")]
-        RB1 --> RB2 & RB3 & RB4
-    end
-
-    subgraph ABAC ["④ ABAC"]
-        direction TB
-        AB1[("Load resource row\ntenantId · ownerId")]
-        AB2{"tenantId +\nownerId match?"}
-        AB1 --> AB2
-    end
-
-    subgraph DBTX ["⑤ DB Transaction + RLS"]
-        direction TB
-        D1["BEGIN\nSET LOCAL app.current_tenant\nSET LOCAL app.current_global_role"]
-        D2[("SQL Query")]
-        D3{"USING policy\n(read filter)"}
-        D4{"WITH CHECK\n(write guard)"}
-        D5["COMMIT"]
-        D1 --> D2 --> D3
-        D3 -->|row visible| D4
-        D4 -->|pass| D5
-    end
-
-    E401(["401\nUnauthorized"])
-    E403(["403\nForbidden"])
-    OK(["200 OK"])
-
-    %% Main happy path
-    REQ --> AUTH
-    A2 -->|valid| TENCTX
-    T3 --> RBAC
-    RB2 & RB3 & RB4 -->|pass| ABAC
-    AB2 -->|pass| DBTX
-    D5 --> OK
-
-    %% Error paths
-    A2 -->|invalid / revoked| E401
-    RB2 & RB3 & RB4 -->|denied| E403
-    AB2 -->|denied| E403
-    D3 -->|row hidden| OK
-    D4 -->|blocked| E403
-
-    %% Styles
-    classDef db    fill:#E1BEE7,stroke:#6A1B9A,color:#000
-    classDef ctx   fill:#FFF9C4,stroke:#F9A825,color:#000
-    classDef guard fill:#C8E6C9,stroke:#2E7D32,color:#000
-    classDef error fill:#FFCDD2,stroke:#C62828,color:#000
-    classDef ok    fill:#C8E6C9,stroke:#1B5E20,color:#000
-    classDef req   fill:#B3E5FC,stroke:#0277BD,color:#000
-
-    class A2,T1,T2,AB1,D2 db
-    class T3 ctx
-    class RB1,RB2,RB3,RB4,AB2,D3,D4 guard
-    class E401,E403 error
+    class REQ,S1,S2,S3,S4,S5,S6,S7,S8 step
+    class S9 decision
     class OK ok
-    class REQ req
+    class DENY deny
