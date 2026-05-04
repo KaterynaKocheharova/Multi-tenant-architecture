@@ -3,7 +3,7 @@ sequenceDiagram
     participant F as Frontend (React SPA)
     participant A as API Server
     participant M as Auth Middleware
-    participant DB as Database (sessions + revoked_tokens)
+    participant DB as Database
 
     %% =========================
     %% LOGIN FLOW
@@ -25,7 +25,7 @@ sequenceDiagram
     A->>M: Validate JWT
 
     M->>M: verify signature + expiration
-    M->>DB: optional check jti in revoked_tokens
+    M->>DB: check jti in revoked_tokens always or for critical endpoints
 
     alt token valid
         DB-->>M: not revoked
@@ -50,8 +50,8 @@ sequenceDiagram
         A->>DB: revoke old refresh token
         A->>DB: store new tokenHash (rotation)
 
-        A-->>F: new access_token (JSON)
-        A-->>F: new refresh_token (Set-Cookie)
+        A-->>F: new access_token 
+        A-->>F: new refresh_token as cookie
 
         Note over F: update in-memory access_token
     else refresh token invalid
@@ -73,7 +73,7 @@ sequenceDiagram
     %% =========================
     %% DENYLIST CHECK
     %% =========================
-    Note over M,DB: For every request
+    Note over M,DB: Maybe for every or some requests
 
     M->>DB: check jti in revoked_tokens
 
